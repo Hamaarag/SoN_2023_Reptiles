@@ -1,0 +1,2489 @@
+---
+title: "Reptile analysis for State of Nature Report 2023 - Coastal Plain, Inland Sands, Loess and Forest"
+author: "Orr Comay"
+date: "2024-02-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+First, load the required R packages:
+```{r}
+# Setup----
+library(tidyverse)
+library(readxl)
+library(sf)
+library(raster)
+library(data.table)
+library(glmmTMB) # For generalized linear mixed models
+library(gllvm)
+library(jtools)
+library(interactions) # For interaction plots
+library(glmmTMB) # For generalized linear mixed models
+library(broom.mixed) # easily extract model coefficients
+library(extrafont)
+library(Cairo) # Export as vector pdf
+library(emmeans) # For pairwise comparison among factor levels
+library(DHARMa) # Examining GLMM model fit
+Sys.setlocale("LC_ALL", "Hebrew") # For reading and writing csv files with Hebrew
+knitr::opts_knit$set(root.dir = 'C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
+
+okabe <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", 'red')
+
+```
+
+If need be, register the fonts (only once per computer):
+```{r}
+# loadfonts()
+```
+
+Define the standards (font, output size and reverse Hebrew text) for graphical output:
+
+```{r}
+fontname = "Almoni ML v5 AAA"
+fontsize=22
+pdf_width=160
+pdf_aspect_ratio = 2/3
+strReverse <- function(x){sapply(lapply(strsplit(x, NULL), rev), paste, collapse="")} # To reverse the order of (Hebrew) text for export as vector pdf
+
+```
+
+Load the raw reptile data:
+
+```{r}
+# Load the data----
+# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
+reptiles.raw <- fread('data/2023-04-19_all_rept_data.csv')
+reptiles <- copy(reptiles.raw)
+reptiles
+
+```
+## Data wrangling:
+The goal of the following code chunk is to find and correct problems with the data (e.g. missing data, errors etc.).
+
+```{r}
+# Data wrangling----
+# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
+
+str(reptiles)
+summary(reptiles)
+
+# Unit
+reptiles[, sort(unique(unit))] # 5 units
+reptiles[is.na(unit), .N] # no missing monitoring units
+
+# Campaigns
+reptiles[, .(year = sort(unique(year))), keyby = .(unit, campaign)] # Loess data includes 2013 - the pilot year with a different protocol, and it should be omitted
+reptiles <- reptiles[!(year == 2013 & unit %like% 'Loess')]
+reptiles[, .(year = sort(unique(year))), keyby = .(unit, campaign)] # problem solved
+
+# Sites, plot and coordinates
+reptiles[is.na(site)] # no missing sites
+reptiles[, sort(unique(site))] # Eshel Nanasi is a typo! Ramat HaShofet capitalization should be consistent
+reptiles[is.na(latitude) | is.na(longitude), .N] # 2 records have missing coordinates
+reptiles[point_name %in% reptiles[is.na(latitude) | is.na(longitude), point_name]] # These are the sole two records from these plots and so I cannot fill in the missing coordinates
+reptiles[, sort(unique(site))] # no apparent repetition in site names
+reptiles[is.na(point_name), .N] # 523 missing point names
+missing.plot.names <- reptiles.raw[year != 2013 & is.na(point_name)]
+setcolorder(missing.plot.names, c('unit', 'campaign', 'year', 'site', 'habitat', 'dunes', 'agriculture', 'settlements', 'subunit',
+                                  'date', 'time', 'latitude', 'longitude', 'SciName', 'count_individuals'))
+setorder(missing.plot.names, unit, campaign, site, date, time)
+missing.plot.names
+reptiles[is.na(point_name), .N, keyby = .(unit)] # all in Loess, semi desert and planted forests
+reptiles[is.na(point_name), .N, keyby = .(unit, year)] # all missing point names are in 2014-2016
+multi_coords_plots <- reptiles[!is.na(point_name), .(no.of.lats = uniqueN(latitude), no.of.lons = uniqueN(longitude)), keyby = .(site, point_name)][
+  no.of.lats > 1 | no.of.lons > 1] # 4 point names have more than one set of coordinates
+multi_coords_plots
+reptiles[point_name %in% multi_coords_plots$point_name & site %in% multi_coords_plots$site,
+         .(lat = unique(latitude), lon = unique(longitude)), keyby = .(site, point_name)] # difference amounts to the third digit after the decimal point
+reptiles[is.na(point_name), point_name := paste(site, case_when(!is.na(settlements) ~ settlements,
+                                                                !is.na(agriculture) ~ agriculture,
+                                                                !is.na(habitat) ~ habitat,
+                                                                !is.na(dunes) ~ dunes,
+                                                                .default = ''),
+                                                paste(latitude, longitude, sep = '_'), sep = ' ')] # use the original point name, unless it is missing
+reptiles[, sort(unique(point_name))] # Hazerim Loess 2 should be Sayeret Shaked Loess 2
+reptiles[point_name %like% 'Hazerim', point_name := 'Sayeret Shaked Loess 2']
+reptiles[point_name %like% 'Sayeret Shaked Loess 2', point_name := 'Sayeret Shaked Loess 2']
+
+mean.coords <- reptiles[point_name %in% multi_coords_plots$point_name & site %in% multi_coords_plots$site,
+                        .(mean.lat = mean(latitude), mean.lon = mean(longitude)), keyby = .(site, point_name)]
+merge(reptiles, mean.coords, by = c('site','point_name'), all.x = T)[!is.na(mean.lat), .(unique(point_name))] # 4 plots have multiple coordinates
+
+reptiles <- merge(reptiles, mean.coords, by = c('site','point_name'), all.x = T) # Add the mean coordinates in cases of multiple coordinates per point name
+reptiles[is.na(mean.lat), ':=' (mean.lat = latitude, mean.lon = longitude)] # fill in missing mean coordinates when there is no multiplicity
+reptiles[is.na(mean.lat) | is.na(mean.lon)] # same two records with no coordinates
+
+reptiles[, conc_lat_lon := paste(mean.lat, mean.lon, sep = '_')] # now we can use mean coordinates to uniquely identify plots
+
+reptiles[, .(no.of.lats = uniqueN(latitude), no.of.lons = uniqueN(longitude)), keyby = point_name][no.of.lats > 1 | no.of.lons > 1] # there are 15 plots with multiple coordinates
+multi_coords_plots <- reptiles[, .(no.of.lats = uniqueN(mean.lat), no.of.lons = uniqueN(mean.lon)), keyby = point_name][no.of.lats > 1 | no.of.lons > 1] # 12 plot names with multiple coordinates - all of them do not have a site name!
+reptiles[point_name %in% multi_coords_plots$point_name, point_name := paste(site, point_name)]
+reptiles[, .(no.of.lats = uniqueN(mean.lat), no.of.lons = uniqueN(mean.lon)), keyby = point_name][no.of.lats > 1 | no.of.lons > 1] # now there are no plot with multiple coordinates
+reptiles[is.na(point_name)] # now there are no missing point names
+
+reptiles[, sort(unique(point_name))] # 380 point names
+no.of.plots <- reptiles[, .(no.of.plots = uniqueN(point_name)), keyby = .(unit, year, site)]
+no.of.plots
+
+reptiles[, .(no.of.plots = uniqueN(point_name))] # 380 plots overall
+reptiles[, .(no.of.plots = uniqueN(point_name)), keyby = .(unit, subunit, year)] # sampling effort vary considerably per campaign in some units
+
+# Dates
+reptiles[, sort(unique(date))] # the format is day/month/year
+reptiles[, Date := as.Date(date, format = '%d/%m/%Y')]
+reptiles[, sort(unique(Date))] # now this makes sense!
+reptiles[, .(no.of.dates = uniqueN(Date)), keyby = .(unit, campaign, year, site, point_name)][no.of.dates > 1] # T0 coastal plain dunes have two dates
+reptiles[unit %like% 'Coast' & campaign == 'T0', .(Date = unique(Date)), keyby = .(site, point_name)] # These dates are consecutive
+reptiles[, Date := min(Date), keyby = .(unit, campaign, point_name)] # 
+
+bla <- copy(reptiles) # Back up before changing dates
+bla[, Date := min(Date), keyby =  .(unit, campaign, point_name)] # each survey's date will arbitrary gain its earliest date
+bla[, sort(unique(Date))] # make sure the dates make sense
+bla[, .(no.of.dates = uniqueN(Date)), keyby = .(unit, campaign, year, site, point_name, point_name)][no.of.dates > 1] # now there is only one date per survey
+reptiles <- copy(bla) # return to the original data name
+rm(bla) # clean up
+
+# time
+setorder(reptiles, unit, campaign, site, point_name, time)
+reptiles[, sort(unique(time))]
+
+# Time of day
+reptiles$time <- as.character(reptiles$time)
+class(reptiles$time) # character 
+reptiles[is.na(time)] # No missing observation times
+reptiles[, .(no.of.times = uniqueN(time)), keyby = .(unit, campaign, site, point_name)][no.of.times > 1] # There are often multiple times per survey ID - we should take the earliest one
+reptiles[is.na(as.ITime(time)) & !is.na(time)] # this conversion will produce no NAs
+bla <- copy(reptiles)
+bla[, ITime := as.ITime(time, tz = 'Asia/Jerusalem')]
+class(bla$ITime) # Should be ITime
+bla[, .(time = unique(time)), keyby = .(ITime)] # this seems ok
+bla[, start_Time := min(ITime), keyby = .(unit, campaign, Date, point_name)] # Take the earliest time per survey
+bla[, .(no.of.start_times = uniqueN(start_Time)), keyby = .(unit, campaign, site, point_name)][no.of.start_times > 1] # Now there is only one start time per survey
+bla[start_Time  > ITime] # sanity check: start time is never before the observation time - makes sense!
+bla[is.na(start_Time)]
+bla[as.ITime(time) == ITime, .N] # 2752 cases where time is identical to ITime
+bla[as.ITime(time) != ITime, .N] # 0 cases where it is not
+bla[is.na(ITime)] # no missing times
+reptiles <- copy(bla)
+rm(bla)
+reptiles[, .(ITime2 = as.ITime(ifelse(is.na(ITime), unique(as.ITime(time, tz = 'Asia/Jerusalem')), ITime))), keyby = .(time, ITime)] # seems reasonable
+reptiles[is.na(time) & is.na(as.ITime(ifelse(is.na(ITime), unique(as.ITime(time, tz = 'Asia/Jerusalem')), ITime)))] # no missing times
+setorder(reptiles, unit, campaign, site, agriculture, settlements, dunes, point_name, start_Time, ITime)
+hist(reptiles[, as.numeric(ITime)], breaks = 24) # X axis is meaningless, but other wise this seems ok
+quantile(reptiles$ITime) # Times should not be in UTC though
+
+class(reptiles$start_Time) # should be ITime
+reptiles[, .(start_ITime = unique(as.ITime(start_Time, tz = 'Asia/Jerusalem'))), keyby = start_Time] # seems ok
+reptiles[, start_Time := as.ITime(start_Time, tz = 'Asia/Jerusalem')]
+# Express diel pattern as the sine and cosine of the distance in radians from noon
+reptiles[, .(unique(as.POSIXct(paste(Date, time, tz = 'Asia/Jerusalem')))), keyby = .(Date, start_Time)] # seems ok
+reptiles[, Date.time := as.POSIXct(paste(Date, start_Time, tz = 'Asia/Jerusalem'))] # Create a Date and time object
+class(reptiles$Date.time) # should be POSIXct
+reptiles[, .(unique(as.POSIXct(paste(Date, '12:00:00', tz = 'Asia/Jerusalem')))), keyby = .(Date, ITime)]
+reptiles[, .(dst(Date))][V1 == T] # From some reason day light saving time is not recognized in the Date field
+reptiles[, .(dst(Date.time))][V1 == T, .N] # but it is recognized for Date.time
+reptiles[, .(dst(Date.time)), keyby = .(Date.time)][V1 == F] # Only November and late March Dates are not in daylight saving time
+head(reptiles[, .(Date.time, Date.time - 3600)]) # as the time units are seconds, to revert one hour we need to subtract 3600 units from Date.time
+attr(reptiles$Date.time, 'tzone') # Time zone is not set
+attr(reptiles$Date.time, 'tzone') <- 'Asia/Jerusalem' # set time zone
+reptiles[, ':=' (Date.time = ifelse(dst(Date.time), Date.time - 3600, Date.time),
+                 ITime = ifelse(dst(Date.time), as.ITime(as.ITime(time) - 3600), as.ITime(ITime)))]
+reptiles[, ':=' (Date.time = as.POSIXct(Date.time), ITime = as.ITime(ITime))]
+reptiles[, .(site, dunes, point_name, Date, start_Time, time, Date.time, ITime)] # Note that the Date.time and ITime are often one hour before the reported time, because it was set to non-daylight saving time 
+
+# Missing plots:----
+study.design <- as.data.table(read_excel('Analysis/Study design.xlsx')) # Import the study design - how many plots per site etc.
+surveyed.plots <- reptiles[, .(no.of.surveyed.plots = uniqueN(point_name)), keyby = .(campaign, unit, subunit, site, settlements, agriculture, dunes, habitat)]
+surveyed.plots
+surveyed.planned.plots <- merge(study.design, surveyed.plots, by = c('unit', 'subunit', 'site', 'settlements', 'agriculture', 'dunes', 'habitat'), all = T)
+
+surveyed.planned.plots[is.na(no.of.planned.plots)] # One site, Hatzerim, was surveyed although it does not appear on the protocols
+surveyed.planned.plots[is.na(no.of.surveyed.plots)] # No sites have no plots
+missing.excessive.plots <- surveyed.planned.plots[no.of.surveyed.plots != no.of.planned.plots, # Find sites where the number of surveyed plots is different from the number of planned plots
+                       .(campaign, unit, subunit, site, settlements, dunes, habitat, agriculture, no.of.planned.plots, no.of.surveyed.plots)] 
+setorder(missing.excessive.plots, campaign, unit, subunit, site, settlements, dunes, habitat, agriculture)
+missing.excessive.plots[, delta.plots := no.of.surveyed.plots - no.of.planned.plots] # negative values mean missing plots and vice versa
+missing.excessive.plots
+write_excel_csv(missing.excessive.plots, 'Analysis/Missing or excessive reptile plots.csv')
+
+# Add plots with zero observations as per Boaz Shacham's e-mail 7.12.2023:
+# I need to fill in all the missing plots and find out whether they were surveyed with no observations (zero observations) or not surveyed in the first place
+zero.obs <- as.data.table(read_excel('Analysis/Missing reptile plots - Boaz comments.xlsx', sheet = 'zero observations'))
+str(zero.obs)
+zero.obs[!is.na(ITime), .(ITime, as.ITime = as.ITime(as.character(ITime)))] # "as.character" is necessary for a successful conversion
+zero.obs[, ':=' (Date = as.Date(Date), ITime = as.ITime(as.character(ITime)), start_Time = as.ITime(as.character(ITime)))]
+
+data.table(reptiles_col = names(reptiles), is.in.zero.obs = names(reptiles) %in% names(zero.obs)) # Find columns in the reptiles data.table that do not occour in the zero.obs data.table
+zero.obs[, ':=' (year = year(Date))]
+data.table(reptiles_col = names(reptiles), is.in.zero.obs = names(reptiles) %in% names(zero.obs)) # Find columns in the reptiles data.table that do not occour in the zero.obs data.table
+setorder(reptiles, unit, year, campaign, settlements, agriculture, dunes, site, Date)
+bla <- rbind(reptiles, zero.obs, fill = T) # add missing zero observations
+
+# Coastal Plain Sands, T0  (2014) - only 3 sites instead of 4 (and 27 plots instead of 36)
+reptiles[unit == 'Coastal Plain Sands' & campaign == 'T0', .(plots = unique(point_name)), keyby = .(site, dunes, settlements)] # Caesarea is missing
+bla[unit == 'Coastal Plain Sands' & campaign == 'T0', .(plots = unique(point_name)), keyby = .(site, dunes, settlements)] # Caesarea is missing
+
+# Coastal Plain Sands, T3 (2019) - only 35 sites instead of 36; no skipped surveys reported in the summary so we assume no reptiles were found
+reptiles[unit == 'Coastal Plain Sands' & campaign == 'T3', .(plots = unique(point_name)), keyby = .(site, dunes, settlements)]
+# Caesarea is missing one Near semi-shifting plot in T0, but it does not appear in the Fulcrum app as well
+# reptiles <- rbind(reptiles, cbind(data.table(unit = 'Coastal Plain Sands', campaign = 'T3', year = 2019, site = 'Caesarea',
+#                                             dunes = 'semi-shifting', settlements = 'Near', SciName = NA, count_individuals = 0,
+#                                             point_name = 'Caesarea semi-shifting Near - missing plot',
+#                                             point_name = 'Caesarea semi-shifting Near - missing plot')), fill = T)
+
+# Loess, T0  (2014) - 24 plots instead of 30
+reptiles[unit == 'Loess Covered Areas in the Northern Negev' & campaign == 'T0', .(plots = unique(point_name)), keyby = .(site, habitat)] # Caesarea is missing
+bla[unit == 'Loess Covered Areas in the Northern Negev' & campaign == 'T0', .(plots = unique(point_name)), keyby = .(site, habitat, Date)] # now 29 plots
+
+# Loess, T1  (2015) - 28 plots instead of 30
+reptiles[unit == 'Loess Covered Areas in the Northern Negev' & campaign == 'T1', .(plots = unique(point_name)), keyby = .(site, habitat)] 
+bla[unit == 'Loess Covered Areas in the Northern Negev' & campaign == 'T1', .(plots = unique(point_name)), keyby = .(site, habitat)] # now 30 plots
+
+# Loess, T2  (2017) - 25 plots instead of 30
+reptiles[unit == 'Loess Covered Areas in the Northern Negev' & campaign == 'T2', .(plots = unique(point_name)), keyby = .(site, habitat)] 
+bla[unit == 'Loess Covered Areas in the Northern Negev' & campaign == 'T2', .(plots = unique(point_name)), keyby = .(site, habitat)] # now 28 plots
+
+# Loess, T3  (2019) - 22 plots instead of 30
+reptiles[unit == 'Loess Covered Areas in the Northern Negev' & campaign == 'T3', .(plots = unique(point_name)), keyby = .(site, habitat)]
+bla[unit == 'Loess Covered Areas in the Northern Negev' & campaign == 'T3', .(plots = unique(point_name)), keyby = .(site, habitat)] # still 22 plots
+
+# Med-desert transition, T0  (2014) - 29 plots instead of 30
+reptiles[unit == 'Mediterranean-Desert Transition Zone' & campaign == 'T0', .(plots = unique(point_name)), keyby = .(site, settlements)] 
+bla[unit == 'Mediterranean-Desert Transition Zone' & campaign == 'T0', .(plots = unique(point_name)), keyby = .(site, settlements, Date)] # now 31 plots
+bla[campaign == 'T0' & site == 'Lehavim', sort(unique(point_name))] # As per Boaz Shacham's e-mail from 1.2.2024, Lehavim Near1 was cancelled because it did not contain enough stones so it should be omitted from the data
+bla[point_name == 'Lehavim Near 1'] # only one record from this plot
+bla <- bla[point_name != 'Lehavim Near 1'] # omit it 
+# There was also an issue with a plot discovered to be an archaeological site in Lehavim Near in 2014 (T0):
+reptiles.raw[site == 'Lehavim' & campaign == 'T0' & settlements == 'Near',
+             .(latitude, longitude, settlements, point_name, date, time, SciName, count_individuals, obs_notes)]
+# raw data: 4 Near plots, 2 with coordinates but no names (1 from 24/4/2014 and 1 from 26/6/2014) and 2 with names but no coordinates (both from 24/4/2014 - 2 months earlier)
+bla[site == 'Lehavim' & campaign == 'T0', .(conc_lat_lon, point_name, Date, time, SciName, count_individuals)]
+# According to Boaz Shacham's mail from 31/1/2024, Near 5 was an archaeological site (...and thus should be omitted? Unclear).
+# According to the raw data file ('SFAR_2014_06_26c.xlsx'), Near5's observations are from 11:57 and 12:02
+bla <- bla[!(site == 'Lehavim' & campaign == 'T0' & time %in% c('11:57:00', '12:02:00'))] # So omit these observations
+bla[site == 'Lehavim', .(no.of.campaigns.surveyed = uniqueN(campaign)), keyby = .(point_name, conc_lat_lon, latitude, longitude)] # Lehavim Near 11 has coordinats only in some campaigns
+bla[point_name == 'Lehavim Near 11', .(campaign, Date, point_name, ITime, longitude, latitude, conc_lat_lon, SciName, count_individuals)] # conc_lat_lon is missing for T1 (zero count)
+bla[point_name == 'Lehavim Near 11', conc_lat_lon := '31.3659832_34.82240395']
+bla[conc_lat_lon == '31.36355103_34.82061174', .(campaign, Date, point_name, ITime, longitude, latitude, conc_lat_lon, SciName, count_individuals)] # conc_lat_lon is missing for T1 (zero count)
+# Lehavim Near 31.36355103_34.82061174 is actually Lehavim Near 12
+
+# Med-desert transition, T1 (2016)
+reptiles.raw[unit == 'Mediterranean-Desert Transition Zone' & campaign == 'T1', .(plots = unique(point_name)), keyby = .(year, site, settlements)] # raw data has no plot names
+reptiles[unit == 'Mediterranean-Desert Transition Zone' & campaign == 'T1', .(plots = unique(point_name)), keyby = .(year, site, settlements)] # so we give them names from nearby plots
+reptiles[site == 'Mirsham', .(plots = unique(point_name)), keyby = .(conc_lat_lon, year, settlements)] # Note that "Mirsham 81" (which is *Near*) is the same as Mirsham *Far* 31.47465474_34.9201405
+reptiles[conc_lat_lon == '31.47465474_34.9201405', ':=' (settlements = 'Near', point_name = 'Mirsham 81')] # So correct this error
+
+# The planted conifer forest is missing 2 sites in T0 (2014), and one site in T1 (2015) and T4 (2021)
+reptiles[unit == 'Planted Conifer Forests' & campaign %in% c('T1', 'T4'), .(plots = unique(point_name)),
+         keyby = .(campaign, year, subunit,site, Date, start_Time, point_name)]
+bla[unit == 'Planted Conifer Forests' & campaign %in% c('T1', 'T4'), .(plots = unique(point_name)),
+         keyby = .(campaign, year, subunit, site, Date, start_Time, point_name)]
+
+# The planted conifer forest is missing 7 plots in T2, and 6 plots in T2
+reptiles[unit == 'Planted Conifer Forests' & campaign %in% c('T2', 'T3'), .(plots = unique(point_name)),
+         keyby = .(campaign, year, subunit, site, point_name)]
+bla[unit == 'Planted Conifer Forests' & campaign %in% c('T2', 'T3'), .(plots = unique(point_name)),
+         keyby = .(campaign, year, subunit, site, point_name)]
+
+# Missing plots in T1 (2015)
+reptiles[unit == 'Planted Conifer Forests' & campaign %in% c('T1'), .(plots = unique(point_name)),
+         keyby = .(campaign, year, subunit, site, point_name)]
+bla[unit == 'Planted Conifer Forests' & campaign %in% c('T1'), .(plots = unique(point_name)),
+         keyby = .(campaign, year, subunit, site, point_name)]
+
+# 
+
+reptiles <- copy(bla) # use the data base with the missing zero observations
+rm(bla) # clean up
+
+# Find and export the excessive plots:
+excessive_plots <- reptiles[(site == 'Hatzerim') |
+                              (site %in% c('Nahal Ashan', 'Sayeret Shaked') & campaign == 'T0') |
+                              (campaign == 'T0' & site == 'Lehavim' & settlements == 'Near') |
+                              (campaign == 'T1' & site %in% c('Ofer', 'Ramat Hashofet')),
+                            .(longitude = unique(longitude), latitude = unique(latitude)),
+                            keyby = .(campaign, site, Date, year, habitat, point_name, settlements)]
+excessive_plots <-  excessive_plots[!(site == 'Sayeret Shaked' & habitat == 'kkl plantings')]
+st_write(st_as_sf(excessive_plots[!is.na(longitude)], coords = c('longitude', 'latitude'), crs = 4326, remove = F),
+         'Analysis/Excessive reptile plots.shp', append = F) # Export the excessive plots as an ESRI shapefile
+st_write(st_as_sf(excessive_plots[!is.na(longitude)], coords = c('longitude', 'latitude'), crs = 4326, remove = F),
+         'Analysis/Excessive reptile plots.gpkg', append = F) # Export the excessive plots as a geopackage
+reptiles[site == 'Ramat Hashofet', .(unique(point_name)), keyby = .(campaign, Date, latitude, longitude)] 
+# only in T1 we have two "Ramat HaShofet" plots which are very, very far away from Ramat HaShofet itself (near Ramot Naftali - might be the cause of confusion?)
+reptiles[site == 'Ramat Hashofet' & latitude > 33, .(unique(point_name)), keyby = .(latitude, longitude)] # indeed
+reptiles[site == 'Ramat Hashofet' & latitude > 33, ':=' (site = 'Ramot Naftali', subunit = 'Galilee')] # update the data accordingly
+reptiles[site == 'Ramot Naftali' & campaign == 'T1']
+reptiles[is.na(point_name), .N] # 41 cases of missing point name
+reptiles[is.na(point_name) & is.na(conc_lat_lon)] # only one case when both point name and con_lat_lon are missing
+reptiles[is.na(point_name) & !is.na(conc_lat_lon), point_name := conc_lat_lon]
+
+# Look for missing plots and sites, that might indicate visits yielding no reptiles at all
+campaigns.per.plot <- reptiles[, .(no.of.campaigns.surveyed = uniqueN(campaign)), keyby = .(unit, site, point_name)]
+campaigns.per.plot[, total.campaigns.per.unit := max(no.of.campaigns.surveyed), keyby = unit]
+campaigns.per.plot[no.of.campaigns.surveyed < total.campaigns.per.unit] # 367 is far too many plots surveyed less than once per campaign
+
+reptiles[, point_name := str_to_title(str_replace(point_name, pattern = '  ', replacement = ' '))]
+survey.plots <- st_as_sf(reptiles[!is.na(mean.lat) & !is.na(mean.lon),
+                                  .(mean.lon = unique(mean.lon)), keyby = .(unit, site, subunit, settlements, habitat, dunes, point_name, mean.lat, conc_lat_lon)],
+                         coords = c('mean.lon', 'mean.lat'), crs = 4326, remove = F)
+uniqueN(survey.plots$point_name) == nrow(survey.plots)
+# Calculate all distances between plots in the same site, to look for multiplications
+plot.distances.all <- data.table(plot = '', conc_lat_lon = '', distance_to_plot = '', distance_m = as.numeric(NA), unit = '', site = '') # Create a data.table to be filled by the loop below
+plot.distances.all <- plot.distances.all[plot != ''] # Empty the data.table
+str(plot.distances.all)
+  
+for (i in sort(unique(survey.plots$site))) {
+  unit <- as.data.table(survey.plots)[site == i, unique(unit)]
+  plot.distances <- as.data.table(st_distance(survey.plots[which(survey.plots$site == i),]))
+  names(plot.distances) <- as.data.table(survey.plots)[site == i, as.character(point_name)]
+  plot.distances[, ':=' (plot = as.data.table(survey.plots)[site == i, as.character(point_name)],
+                         conc_lat_lon = as.data.table(survey.plots)[site == i, as.character(conc_lat_lon)])]
+ # setcolorder(plot.distances, 'plot')
+  plot.distances.melt <- melt.data.table(plot.distances, id.vars = c('plot', 'conc_lat_lon'), variable.name = 'distance_to_plot', value.name = 'distance_m')
+  plot.distances.melt[, ':=' (unit = unit, site = i, distance_m = as.numeric(distance_m))]
+  plot.distances.all <- rbind(plot.distances.all, plot.distances.melt)
+  rm(plot.distances, plot.distances.melt, unit) # clean up
+}
+plot.distances.all <- unique(plot.distances.all[plot != distance_to_plot]) # Remove self-distances
+plot.distances.all <- merge(plot.distances.all, as.data.table(survey.plots)[, .(mean.lat, mean.lon), keyby = .(plot = point_name, subunit, habitat, settlements, dunes)],
+                            by = 'plot', all.x = T) # add coordinates
+plot.distances.all <- merge(plot.distances.all, as.data.table(survey.plots)[, .(distance_to_plot = point_name, subunit, habitat, settlements, dunes)],
+                            by = 'distance_to_plot', all.x = T) # add coordinates
+# Plot the distances between plots
+setorder(plot.distances.all, distance_m) # sort by distance between plots
+plot(plot.distances.all$distance_m) # up to 10 km between plots
+plot(plot.distances.all[distance_m < 2000, distance_m]) # zoom in more and more
+plot(plot.distances.all[distance_m < 500, distance_m])
+plot(plot.distances.all[distance_m < 150, distance_m]) 
+plot(plot.distances.all[distance_m < 50, distance_m]) # 3-5 meters seems like a valid cut-off
+
+plot.distances.same.att <- plot.distances.all[(settlements.x == settlements.y) | is.na(settlements.x)]
+plot.distances.same.att <- plot.distances.same.att[(habitat.x == habitat.y) | is.na(habitat.x)]
+plot.distances.same.att <- plot.distances.same.att[(dunes.x == dunes.y) | is.na(dunes.x)]
+plot.distances.same.att <- plot.distances.same.att[(subunit.x == subunit.y) | is.na(subunit.x)]
+
+setorder(plot.distances.same.att, unit, subunit.x, habitat.x, settlements.x, dunes.x, mean.lat) # Order by unit, site and latitude
+plot.distances.same.att[distance_m < 10] # No fewer than 434 plots less than 10 meters away from each other
+plot.distances.same.att[distance_m < 5] # Same, less than 5 meters away
+plot.distances.same.att[distance_m < 2] # only 414 plots less than 2 meters away from each other
+names(plot.distances.same.att) <- gsub('.x', '', names(plot.distances.same.att))
+plot.distances.same.att[, ':=' (subunit.y = NULL, habitat.y = NULL, settlements.y = NULL, dunes.y = NULL)]
+names(plot.distances.same.att)
+plot.distances.same.att[, new_plot_id := ifelse(distance_m < 5, distance_to_plot, plot)] # If the distance between plots is less than 5 meters, take the name of the plot to which the distance was measured
+plot.distances.same.att[new_plot_id == plot, .N] # 1702 cases
+plot.distances.same.att[new_plot_id == distance_to_plot, .N] # 434 cases
+plot.distances.same.att
+write_excel_csv(plot.distances.same.att, file = 'Analysis/Distances between plots in the same site.csv')
+
+# Create a table of pairs of plot codes which are synonyms (same attributes, less than 5 meters apart):
+setorder(plot.distances.same.att, plot, distance_m, conc_lat_lon) # sort by distance and plot name
+plot.synonyms <- plot.distances.same.att[distance_m < 5, .(new_conc_lat_lon = first(conc_lat_lon)),
+                                         keyby = .(site, plot)] # use the first (southernmost) plot ID as the ID for the pair
+plot.synonyms <- merge(plot.synonyms, plot.distances.same.att[, .(new_plot_id = first(plot)), keyby = .(new_conc_lat_lon = conc_lat_lon)],
+      by = c('new_conc_lat_lon'), all.x = T) # add the new plot name per coordinates
+plot.synonyms[, .(conc_lat_lon = new_conc_lat_lon, new_plot_id)]
+plot.synonyms <- unique(plot.synonyms)
+setcolorder(plot.synonyms, c('plot', 'new_conc_lat_lon', 'new_plot_id'))
+plot.synonyms
+
+setorder(plot.synonyms, plot, new_plot_id)
+# plot.synonyms <- plot.synonyms[(new_plot_id %like% '_' & plot %like% '_') | !new_plot_id %like% '_'] # remove cases where the new plot ID would include the coordinates, except when the alternative is to lose the synonimity altogether
+
+plot.synonyms[, .(no.of.new_plot_ids = uniqueN(new_conc_lat_lon)), keyby = plot][no.of.new_plot_ids != 1] # only one conc_lat_lon per plot now
+setorder(plot.synonyms, plot, new_conc_lat_lon)
+plot.synonyms[, uniqueN(plot)] # 248 synonimized plots
+bla <- plot.distances.same.att[, .(new_plot_id = unique(plot)), keyby = conc_lat_lon] # list all the synonyms per coordinate pair
+multi.new.plot.ids <- bla[, .(no.of.new.plot.ids = uniqueN(new_plot_id)), keyby = conc_lat_lon][no.of.new.plot.ids > 1, conc_lat_lon]
+bla[conc_lat_lon %in% multi.new.plot.ids, new_plot_id := first(new_plot_id), by = conc_lat_lon]
+bla <- unique(bla)
+# plot.synonyms <- merge(plot.synonyms, bla, by.x = 'new_conc_lat_lon', by.y = 'conc_lat_lon', all.x = T)
+setorder(plot.synonyms, plot, new_plot_id)
+plot.synonyms[, new_plot_id := first(new_plot_id), by = plot]
+plot.synonyms <- unique(plot.synonyms[, .(plot, new_plot_id)])
+plot.synonyms[, .(no.of.new.plot.ids = uniqueN(new_plot_id)), keyby = plot][no.of.new.plot.ids > 1] # should be an empty data.table
+
+reptiles <- merge(reptiles, plot.synonyms[, .(point_name = plot, new_plot_id)], by = 'point_name', all.x = T) # add the new plot ID to the reptiles database
+reptiles[, uniqueN(point_name)] # 371 plot codes before renaming
+reptiles[!is.na(new_plot_id), point_name := new_plot_id]
+reptiles[, uniqueN(point_name)] # now only 289 plot codes
+reptiles[is.na(point_name), .N] # no cases of missing point names
+reptiles[is.na(point_name) & is.na(conc_lat_lon), ] # no cases when both point name and conc_lat_lon are missing
+reptiles[is.na(point_name), point_name := conc_lat_lon]
+
+point_names <- reptiles[, .(point_name = unique(point_name)), keyby = site]
+point_names <- merge(point_names, reptiles[!is.na(point_name) & !is.na(mean.lat), .(settlements = unique(settlements), habitat = unique(habitat),
+                                                  agriculture = unique(agriculture), dunes = unique(dunes), mean.lat = unique(mean.lat),
+                                                  mean.lon = unique(mean.lon)), keyby = 'point_name'], by = 'point_name', all.x = T)
+
+# campaign
+reptiles[is.na(campaign), .N, keyby = .(unit, year)] # all missing campaigns are in 2018  
+reptiles[, unique(campaign), keyby = .(unit, year)] # Should be T2
+reptiles[is.na(campaign) & year == 2018, campaign := 'T2']
+
+# unit
+reptiles[, sort(unique(unit))]
+reptiles[unit == 'Mediterranean Transition Zone', unit := 'Mediterranean-Desert Transition Zone']
+
+# survey ID
+reptiles[, survey_ID := paste(campaign, point_name, sep = '_')]
+reptiles[, .(no.of.dates = uniqueN(date)), keyby = .(unit, campaign, survey_ID)][no.of.dates > 1] # No fewer than 20 surveys have more than one date, all from T0
+reptiles[survey_ID %in% reptiles[, .(no.of.dates = uniqueN(date)), keyby = survey_ID][no.of.dates > 1, survey_ID],
+         .(unit, campaign, site, survey_ID, date)] # All from T0 (2014) coastal plain dunes
+# These cases are all one day apart, luckily. We will arbitrarily take the first date of each
+reptiles[, .(Date = min(date)), keyby = survey_ID]
+reptiles[, .(no.of.surveys = uniqueN(survey_ID))] # 698 surveys overall
+reptiles[count_individuals > 0, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit)] # only surveys where at least one reptile was found
+reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit)]
+reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, year)]
+reptiles[, sort(unique(settlements)), keyby = unit] # this is only meaningful in the coastal plain and semi desert
+reptiles[unit %like% 'Forest', settlements := NA]
+reptiles[, sort(unique(habitat))]
+reptiles[habitat %like% 'agri', habitat := "bedouin agriculture"]
+plot.surveyed <- reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, year, site, habitat, dunes, agriculture, settlements)]
+plot.surveyed[no.of.surveys != 3]
+plot.surveyed
+merge(plot.surveyed, data.table(expand.grid(site = reptiles[, unique(site)], campaign = c('T0', 'T1', 'T2', 'T3', 'T4'))),
+      by = c('site', 'campaign'), all.x = T)[is.na(no.of.surveys)] # empty data.table -> all sites were surveyed at least once per campaign
+write_excel_csv(plot.surveyed, 'Analysis/No. of plots surveyed breakdown 29.1.2024.csv')
+
+# 4 plots in Lehavim in 2014 (should be only 3):
+reptiles[site %like% 'Lehavim' & year == 2014, .(Date, ITime, SciName, count_individuals), keyby = .(campaign, settlements, point_name)]
+reptiles[point_name == 'Lehavim Near 31.3659832_34.82239692', point_name := 'Lehavim Near 11']
+
+# 4 plots in KKL plantings in Nahal Ashan in 2014 (should be only 3):
+reptiles[campaign == 'T0' & site %like% 'Ashan', .(unique(point_name)), keyby = .(Date, habitat)] # 31.2826508607692_34.7486309384615 is the same as 31.28265003_34.74862372
+# We use the original excel file from 2014 to correctly assign observations to plots. Nahal Ashan kkl 1 had only one Chalcides ocellatus and nothing else:
+reptiles[campaign == 'T0' & site %like% 'Ashan', .(SciName), keyby = .(Date, ITime, point_name, habitat)] 
+# Nahal Ashan Kkl Plantings 31.28265003_34.74862372 = Nahal Ashan Kkl Plantings 2; 
+# Nahal Ashan Kkl Plantings 31.28684679_34.74364408 = Nahal Ashan Kkl Plantings 1; 
+# Nahal Ashan Kkl Plantings 31.29349178_34.74750308 = Nahal Ashan Kkl Plantings 3
+reptiles[point_name == 'Nahal Ashan Kkl Plantings 31.28265003_34.74862372', point_name := 'Nahal Ashan Kkl Plantings 2']
+reptiles[point_name == 'Nahal Ashan Kkl Plantings 31.28684679_34.74364408', point_name := 'Nahal Ashan Kkl Plantings 1']
+reptiles[point_name == 'Nahal Ashan Kkl Plantings 31.29349178_34.74750308', point_name := 'Nahal Ashan Kkl Plantings 3']
+reptiles[unit %like% 'Loess' & campaign == 'T0' & site %like% 'Ashan', .(unique(point_name)), keyby = .(Date, habitat)] # now only 3 plots, as expected
+
+# 4 plots in KKL plantings in Nahal Ashan in 2018 (should be only 3):
+reptiles[unit %like% 'Loess' & campaign == 'T2' & site %like% 'Ashan', .(total.obs = sum(count_individuals)),
+         keyby = .(Date, habitat, point_name)] # Only 3 plots per habitat, as expected, but one plot has zero observations (Nahal Ashan Loess 2) 
+
+# only 2 plots in Aderet in T0 - why?
+reptiles[site %like% 'Aderet' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Aderet plots were surveyed:
+# Aderet 31.67145208_34.98801954 = Aderet Kkl 3; Aderet 31.67578059_34.98668299 = Aderet Kkl 2
+reptiles[point_name == 'Aderet 31.67145208_34.98801954', point_name := 'Aderet Kkl 3']
+reptiles[point_name == 'Aderet 31.67578059_34.98668299', point_name := 'Aderet Kkl 2']
+
+# Only 1 plot in Bat Shlomo in T0 - why?
+reptiles[site %like% 'Bat Shlomo' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Bat Shlomo plots were surveyed:
+reptiles[point_name == 'Bat Shlomo 32.58718195_35.01053736', point_name := 'Bat Shlomo Kkl 3'] 
+
+# Only 1 plot in Eutanim in T0 - why?
+reptiles[site %like% 'Eitanim' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Eitanim plots were surveyed:
+reptiles[point_name == 'Eitanim 31.77909156_35.10359697', point_name := 'Eitanim Kkl 2'] 
+
+# Only 2 plots in Eshtaol in T0 - why?
+reptiles[site %like% 'Eshtaol' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Eshtaol plots were surveyed:
+reptiles[point_name == 'Eshtaol 31.78378561_35.02056481', point_name := 'Eshtaol Kkl 4'] 
+reptiles[point_name == 'Eshtaol 31.78694021_35.02193935', point_name := 'Eshtaol Kkl 3']
+
+# Only 2 plots in Givat Yeshayahu in T0 - why?
+reptiles[site %like% 'Yeshayahu' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Givat Yeshayahu plots were surveyed:
+reptiles[point_name == 'Givat Yeshayahu 31.66774825_34.92543564', point_name := 'Givat Yeshayahu 3'] 
+reptiles[point_name == 'Givat Yeshayahu 31.66540534_34.91739057', point_name := 'Givat Yeshayahu 2'] 
+
+# Only 2 plots in Kerem Maharal in T0 - why?
+reptiles[site %like% 'Maharal' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Kerem Maharal plots were surveyed:
+reptiles[point_name == 'Kerem Maharal 32.61292488_34.96995645', point_name := 'Kerem Maharal Kkl 1'] 
+reptiles[point_name == 'Kerem Maharal 32.61228912_34.96368208', point_name := 'Kerem Maharal Kkl 3'] 
+
+# Only 2 plots in Manara in T0 - why?
+reptiles[site %like% 'Manara' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Manara plots were surveyed:
+reptiles[point_name == 'Manara 33.17320998_35.5510869', point_name := 'Manara Kkl 2'] 
+reptiles[point_name == 'Manara 33.18278817_35.54829586', point_name := 'Manara Kkl 1'] 
+
+# Only 2 plots in Ofer in T0 - why?
+reptiles[site %like% 'Ofer' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Ofer plots were surveyed:
+reptiles[point_name == 'Ofer 33.17320998_35.5510869', point_name := 'Ofer Kkl 1'] 
+reptiles[point_name == 'Ofer 32.66032073_34.97882237', point_name := 'Ofer Kkl 3'] 
+
+# Only 2 plots in Zuriel in T0 - why?
+reptiles[site %like% 'Zuriel' & campaign == 'T0', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # By comparing to the original data file, we can see that all 3 Zuriel plots were surveyed:
+reptiles[point_name == 'Zuriel 33.013998_35.31735071', point_name := 'Zuriel Kkl 3'] 
+reptiles[point_name == 'Zuriel 33.01092878_35.31488161', point_name := 'Zuriel Kkl 2'] 
+
+# 4 plots in Ofer in T1 (2015) - why?
+reptiles[site %like% 'Ofer' & campaign == 'T1', .(point_name, SciName, count_individuals), keyby = .(Date, ITime)] # 16.9.2015 = Kerem Maharal; 3.11.2015 = Ofer - but site names were reveresed!
+reptiles[site %in% c('Ofer', 'Kerem Maharal') & campaign == 'T1', .(site, point_name, SciName, count_individuals), keyby = .(Date, ITime)]
+reptiles[site %in% c('Ofer', 'Kerem Maharal') & Date == as.Date('2015-09-16'), ':=' (site = 'Ofer',
+                                                                                     point_name = str_replace(point_name, 'Kerem Maharal', 'Ofer'))]
+reptiles[site %in% c('Ofer', 'Kerem Maharal') & Date == as.Date('2015-11-03'), ':=' (site = 'Kerem Maharal',
+                                                                                     point_name = str_replace(point_name, 'Ofer', 'Kerem Maharal'))]
+reptiles[point_name == 'Kerem Maharal Far 1', point_name := 'Kerem Maharal Kkl Plantings 1']
+reptiles[site %in% c('Ofer', 'Kerem Maharal'), .(no.of.plots = uniqueN(point_name)), keyby = .(campaign, unit, site)] # Now all is okay
+
+# This is a zero count survey as per the Fulcrum - use the zero.obs object to include it! 
+# reptiles <- unique(rbind(reptiles, data.table(unit = 'Planted Conifer Forests', campaign = 'T1', year = 2015, site = 'Bat Shlomo',
+#                                               settlements = 'Far', SciName = NA, heb_name = NA, Occurrence = 0, subunit = 'Carmel',
+#                                               count_individuals = 0, point_name = 'Bat Shlomo Far 1',
+#                                               point_name = 'Bat Shlomo Far 1 - missing plot', Date = as.Date('2015-07-07'),
+#                                               Date.time = as.POSIXct('2015-07-07 09:03', tz = 'Asia/Jerusalem'), ITime = as.ITime('09:03')), fill = T))
+
+# Kerem Maharal T1 (2015) should have 3 plots:
+reptiles[site %like% 'Maharal' & campaign == 'T1',.(total.obs = sum(count_individuals)), keyby = .(Date, ITime, point_name)] # 
+
+reptiles <- rbind(reptiles, data.table(unit = 'Planted Conifer Forests', campaign = 'T1', year = 2015, site = 'Kerem Maharal',
+                                       settlements = 'Far', SciName = 'Ablepharus rueppellii', heb_name = 'חומט גמד', Occurrence = 1,
+                                       subunit = 'Carmel', count_individuals = 7, point_name = 'Kerem Maharal Far 1',
+                                       Date = as.Date('2015-11-03'), Comments = 'Missing plot',
+                                       Date.time = as.POSIXct('2015-11-03 10:36', tz = 'Asia/Jerusalem'), 
+                                       start_Time = as.ITime('10:36'), ITime = as.ITime('10:36')), fill = T)
+reptiles <- rbind(reptiles, data.table(unit = 'Planted Conifer Forests', campaign = 'T1', year = 2015, site = 'Kerem Maharal',
+                                       settlements = 'Far', SciName = 'Mediodactylus orientalis', heb_name = 'שממית עצים', Occurrence = 1,
+                                       subunit = 'Carmel', count_individuals = 3, point_name = 'Kerem Maharal Far 1',
+                                       Date = as.Date('2015-11-03'), Comments = 'Missing plot',
+                                       start_Time = as.ITime('10:36'), Date.time = as.POSIXct('2015-11-03 10:36', tz = 'Asia/Jerusalem'), ITime = as.ITime('10:36')), fill = T)
+reptiles[, survey_ID := paste(campaign, point_name, sep = '_')]
+
+reptiles[point_name == '32.61601959_34.96652201' & campaign == 'T1', .(Date, SciName, count_individuals)]
+
+reptiles[unit %like% 'Forest' & !is.na(SciName), .(total.abnd = sum(count_individuals), total.sp.rich = uniqueN(SciName))]
+reptiles[unit %like% 'Forest', .(no.of.surveys = uniqueN(survey_ID)), keyby = .(campaign, year, subunit, site)][no.of.surveys != 3]
+# why 4 surveys in Kerem Maharal and 2 in Ramat Hashofet in T1 (2015)?
+# We know that Ramat Hashofet 3 was not surveyed in 2015; 
+reptiles[site %in% reptiles[unit %like% 'Forest', .(no.of.surveys = uniqueN(survey_ID)), keyby = .(campaign, subunit, site)][no.of.surveys != 3, site],
+         .(campaign, site, point_name, Date, SciName, count_individuals)]
+# Kerem Maharal Far 1 should be the same as Kerem Maharal Kkl Plantings 1:
+reptiles[point_name %in% c('Kerem Maharal Far 1', 'Kerem Maharal Kkl 1', 'Kerem Maharal Kkl Plantings 1'),
+         ':=' (point_name = 'Kerem Maharal Kkl Plantings 1', survey_ID = paste(campaign, 'Kerem Maharal Kkl Plantings 1', sep = '_'))]
+reptiles[unit %like% 'Forest', .(no.of.surveys = uniqueN(survey_ID)), keyby = .(campaign, year, subunit, site)][no.of.surveys != 3]
+
+# Make sure all survey IDs have the same coordinates (when available):
+reptiles[, ':=' (mean.lat = mean(mean.lat, na.rm = T), mean.lon = mean(mean.lon, na.rm =T)), keyby = survey_ID]
+reptiles[is.na(mean.lat) | is.na(mean.lon)]
+
+
+# Calculate a diel pattern via a cosinor model
+reptiles[, .(no.of.times = uniqueN(ITime)), keyby = survey_ID][no.of.times > 1] # 72 cases where there is more than one time per survey ID!
+reptiles[, ITime := min(ITime, na.rm = T), keyby = survey_ID]
+reptiles[, .(no.of.times = uniqueN(ITime)), keyby = survey_ID][no.of.times > 1] # Now this is an empty data.table
+
+reptiles[, Date.time := as.POSIXct(paste(Date, ITime, tz = 'Asia/Jerusalem'))] # Create a Date and time object
+
+reptiles[, ':=' (dist.noon = ifelse(as.ITime(ITime) < as.ITime('12:00'), # If the starting hour is before noon...
+                                    Date.time %--% as.POSIXct(paste(Date, '12:00:00'), tz = 'Asia/Jerusalem'), # ...then take the distance from today's noon
+                                    Date.time %--% as.POSIXct(paste(Date , '12:00:00'), tz = 'Asia/Jerusalem')))] # else, take the distance from tomorrow's noon
+reptiles[, .(max(dist.noon, na.rm = T), min(dist.noon, na.rm = T))] # from 22800 seconds (6 hours and 20 minutes) to ~27600 seconds (7 hours and 40 minutes)
+reptiles[dist.noon %in% c(min(dist.noon), max(dist.noon)), .(unit, site, Date, time, ITime)]
+hist(reptiles[, ITime], breaks = 24)
+reptiles[is.na(dist.noon), sort(unique(Date.time))] # No missing distances to noon
+reptiles[is.na(dist.noon)] # should be an empty data.table
+
+ggplot(data = reptiles, aes(x = ITime, y = dist.noon)) + geom_point() # This does not seem good yet
+
+reptiles[, ':=' (dist.noon.radians = dist.noon * pi / (24*60*30), # Convert to radians, one harmonic; divide by the number of seconds in half a day
+                 dist.noon.radians.2h = 2*dist.noon * pi / (24*60*30))] # same, two harmonics
+reptiles[, .(min(dist.noon), min(dist.noon.radians), max(dist.noon), max(dist.noon.radians))]
+unique(reptiles[dist.noon == min(dist.noon), .(Date, ITime, dist.noon, dist.noon.radians)]) # 19:40 (latest hour of survey)
+unique(reptiles[dist.noon == max(dist.noon), .(Date, ITime, dist.noon, dist.noon.radians)]) # 5:40 (earliest survey Date)
+reptiles[, ':=' (sin.dist.noon = sin(dist.noon.radians), cos.dist.noon = cos(dist.noon.radians),
+                 sin.dist.noon.2h = sin(dist.noon.radians.2h), cos.dist.noon.2h = cos(dist.noon.radians.2h))] # Calculate the sin and cosine of the distance from June 21st
+plot(reptiles$ITime, reptiles$sin.dist.noon) # Sanity check - should be a wave
+plot(reptiles$ITime, reptiles$sin.dist.noon.2h) # Sanity check - should be a denser wave
+
+# subunits
+reptiles[, uniqueN(survey_ID), keyby = subunit] # this makes sense, but note that sampling effort is uneven
+
+# campaign
+reptiles[, uniqueN(point_name), keyby = .(unit, campaign, year)] #
+reptiles <- reptiles[year != 2013] # omit the 2013 pilot data
+
+# settlements
+reptiles[!is.na(settlements), .(no.of.plots = uniqueN(point_name)), keyby = .(unit, settlements)] 
+reptiles[unit %like% 'Forest', settlements := NA]
+# Far or Near settlements is indicated in Coastal Plain Sands (unbalanced) and in Mediterranean-Desert Transition Zone (balanced)
+
+# agriculture
+reptiles[!is.na(agriculture), .(no.of.plots = uniqueN(point_name)), keyby = .(unit, agriculture)] 
+# Far or Near agriculture is indicated in inland sands (unbalanced)
+
+# dunes
+reptiles[!is.na(dunes), .(no.of.plots = uniqueN(point_name)), keyby = .(unit, dunes)] 
+# dune type is indicated in inland sands (balanced) and in coastal dunes (unbalanced)
+
+# habitat
+reptiles[!is.na(habitat), .(no.of.plots = uniqueN(point_name), .N), keyby = .(unit, habitat)] 
+reptiles[habitat %in% c('Agriculture', 'beduin agriculture'), habitat := 'bedouin agriculture']
+reptiles[habitat == 'Loess', habitat := 'loess']
+reptiles[habitat == 'KKL Plantings', habitat := 'kkl plantings']
+reptiles[!is.na(habitat), .(no.of.plots = uniqueN(point_name), .N), keyby = .(unit, habitat)] 
+# reptiles[!is.na(habitat), unit := 'Loess Covered Areas in the Northern Negev'] # Only the Loess should have 'habitat' field; all other units with a value in the habitat field are mistakes
+reptiles[!is.na(habitat), .(no.of.plots = uniqueN(point_name), .N), keyby = .(unit, habitat)] 
+
+# habitat type is indicated in loess (roughly balanced)
+
+setorder(reptiles, unit, campaign, site, habitat, point_name, Date, ITime) # Make sure the observations are ordered sensibly
+reptiles
+
+## Sampling effort per unit----
+reptiles[, .(no.of.surveys = uniqueN(survey_ID), no.of.plots = uniqueN(point_name), no.of.sites = uniqueN(site)),
+         keyby = .(unit, campaign, year)]
+reptiles[, .(no.of.surveys = uniqueN(survey_ID), no.of.plots = uniqueN(point_name), no.of.sites = uniqueN(site)),
+         keyby = .(unit, campaign)]
+
+# # date and seasonality
+reptiles[, sort(unique(date))] # Which dates are there in the data base?
+reptiles[, .(date = unique(date), Date = unique(as.Date(date, format = '%d/%m/%Y')))] # seems ok
+reptiles[is.na(date), .N] # 69 records with no dates
+reptiles[is.na(date) & is.na(Date)] # but no records with neither date or Date
+reptiles[!is.na(date) & is.na(as.Date(date))] # No dates would be converted to NAs via as.Date
+reptiles[, sort(unique(as.Date(date))), keyby = date] # this is clearly wrong
+reptiles[is.na(Date), Date := as.Date(date, format = '%d/%m/%Y')]
+reptiles[is.na(Date), .N] # now there are no records without dates
+reptiles[, sort(unique(Date))] # Which dates are there in the data base?
+str(reptiles) # verify that "Date" is indeed defined as a date
+reptiles[, .(no.of.dates = uniqueN(Date)), keyby = .(campaign, unit, site, survey_ID)][no.of.dates > 1] # 25 cases in which there is more than one date per survey ID (all from T0)
+excessive_dates <- reptiles[, .(no.of.dates = uniqueN(Date)), keyby = .(campaign, unit, site, survey_ID)][no.of.dates > 1]
+reptiles[survey_ID %in% excessive_dates$survey_ID, .(Date = unique(Date)), keyby = .(campaign, site, point_name, survey_ID)] # in some cases, these are different plots; in others, the dates are one day apart
+reptiles[survey_ID == 'T2_NA', unique(point_name)] # very different plots are lumped here
+reptiles[survey_ID == 'T2_NA', survey_ID := paste(campaign, point_name, sep = '_')]
+excessive_dates <- reptiles[, .(no.of.dates = uniqueN(Date)), keyby = .(campaign, unit, site, survey_ID)][no.of.dates > 1]
+reptiles[survey_ID %in% excessive_dates$survey_ID, .(Date = unique(Date)), keyby = .(campaign, site, point_name, survey_ID)] # now the dates are one day apart
+bla <- copy(reptiles) # Back up before changing dates
+bla[, Date := min(Date), keyby = survey_ID] # each survey's date will arbitrary gain its earliest date
+bla[, sort(unique(Date))] # make sure the dates make sense
+bla[survey_ID %in% excessive_dates$survey_ID, .(Date = unique(Date)), keyby = .(campaign, site, point_name, survey_ID)] # now there is only one date per survey
+bla[, .(no.of.dates = uniqueN(Date)), keyby = .(campaign, unit, site, survey_ID)][no.of.dates > 1] # no more multiple dates per survey
+reptiles <- copy(bla) # return to the original data name
+rm(bla) # clean up
+
+reptiles[, .(no.of.records = .N, sp.rich = uniqueN(SciName), first.yr = min(year), last.year = max(year)), keyby = .(unit)] # all records
+reptiles[, .(no.of.records = .N, sp.rich = uniqueN(heb_name)), keyby = .(unit)] # Should be the same, but species richness is not
+reptiles[, .(first.survey = min(Date), last.survey = max(Date)), keyby = .(unit, campaign)]
+# reptiles[is.rare.in.unit == F, .(no.of.records = .N, sp.rich = uniqueN(SciName)), keyby = .(unit)] # without rare species
+
+# Express seasonality as the sine and cosine of the distance in radians from June 21st (longest day of the year)
+reptiles[, ':=' (dist.21.June = ifelse(as.integer(as.Date(paste('1970', month(Date), day(Date), sep = '-'))) < 354,
+                                     Date - as.Date(paste(year(Date), 6, 21, sep = '-')),
+                                     Date - as.Date(paste(year(Date) + 1, 6, 21, sep = '-'))))]
+reptiles[, .(max(dist.21.June, na.rm = T), min(dist.21.June, na.rm = T))] # Negative values = all Dates are before June 21st (and after December 21 of the previous year)
+reptiles[is.na(dist.21.June), sort(unique(Date))] # No missing distances to June 21st
+reptiles[is.na(dist.21.June)] # should be an empty data.table
+reptiles[, ':=' (dist.21.June.radians = dist.21.June * pi / 182.5, # Convert to radians, one harmonic
+               dist.21.June.radians.2h = 2*dist.21.June * pi / 182.5)] # same, two harmonics
+reptiles[, .(min(dist.21.June), min(dist.21.June.radians), max(dist.21.June), max(dist.21.June.radians))]
+unique(reptiles[dist.21.June == min(dist.21.June), .(Date, dist.21.June, dist.21.June.radians)]) # March 2dth (earliest survey Date)
+unique(reptiles[dist.21.June == max(dist.21.June), .(Date, dist.21.June, dist.21.June.radians)]) # November 25th (latest survey Date)
+reptiles[, ':=' (sin.dist.21.June = sin(dist.21.June.radians), cos.dist.21.June = cos(dist.21.June.radians),
+               sin.dist.21.June.2h = sin(dist.21.June.radians.2h), cos.dist.21.June.2h = cos(dist.21.June.radians.2h))] # Calculate the sin and cosine of the distance from June 21st
+reptiles[is.na(sin.dist.noon) | is.na(sin.dist.21.June), .(unit, Date, site, point_name, ITime)] # Date and time are available, though
+
+# Survey dates and times
+reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, month(Date))]
+write_excel_csv(reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, month(Date))],
+                'Analysis/No. of surveys per unit, campaign and calendar month.csv')
+write_excel_csv(reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, month(Date))],
+                'Analysis/No. of surveys per unit and calendar month.csv')
+reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, round(ITime))]
+write_excel_csv(reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, round(ITime))],
+                'Analysis/No. of surveys per unit, campaign and rounded hour.csv')
+write_excel_csv(reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, round(ITime))],
+                'Analysis/No. of surveys per unit and rounded hour.csv')
+
+# Species and their traits
+species.list <- read_excel('data/Reptile_species_traits.xlsx', sheet = 'to_import') %>% as.data.table()
+reptiles[, heb_name := NULL]
+reptiles <- merge(reptiles, species.list[, .(SciName, heb_name)], by = 'SciName', all.x = T) # add Hebrew species names
+reptiles[is.na(heb_name), sort(unique(SciName))] # 10 species with no Hebrew names
+reptiles[is.na(SciName), .N] # 48 records with no species
+reptiles[is.na(SciName) & count_individuals > 0, .N] # But none of them have reported any reptiles anyway
+reptiles <- rbind(merge(reptiles[!is.na(SciName)], species.list[!is.na(SciName), .(SciName = old_sciname, heb_name)], by = 'SciName', all.x = T),
+                  reptiles[is.na(SciName)], fill = T) # Add Hebrew names wherever there are any species names
+reptiles[, ':=' (heb_name = ifelse(!is.na(heb_name.x), heb_name.x, heb_name.y), heb_name.x = NULL, heb_name.y = NULL)]
+reptiles[is.na(heb_name), sort(unique(SciName))] # 7 more species with no Hebrew names
+reptiles[SciName %in% c('Chamaeleo chamaeleon musae', 'Chamaeleo chamaeleon recticrista'),
+         ':=' (SciName = 'Chamaeleo chamaeleon', heb_name = 'זיקית')]
+reptiles[SciName == 'Stellagama stellio', ':=' (SciName = 'Laudakia vulgaris', heb_name = 'חרדון מצוי')]
+reptiles[SciName == 'Xerotyphlops vermicularis', ':=' (SciName = 'Xerotyphlops syriacus', heb_name = 'נחשיל מצוי')]
+reptiles[SciName == 'Eirenis rothi', ':=' (SciName = 'Eirenis rothii', heb_name = 'שלוון טלוא-ראש')]
+reptiles[SciName == 'Eumeces schneideri', ':=' (SciName = 'Eumeces schneiderii', heb_name = 'חומט מנומר')]
+reptiles[SciName == 'Laudakia stellio', ':=' (SciName = 'Laudakia vulgaris', heb_name = 'חרדון מצוי')]
+reptiles[is.na(heb_name), sort(unique(SciName))] # No more species with no Hebrew names
+reptiles[, .(no.of.Heb_names = uniqueN(heb_name)), keyby = SciName][no.of.Heb_names > 1] # No species with multiple Hebrew names
+reptiles[, .(no.of.Sci_names = uniqueN(SciName)), keyby = SciName][no.of.Sci_names > 1] # No species with multiple scientific names
+reptiles[!SciName %in% species.list$SciName, unique(SciName)] # species missing in the official species list
+reptiles[SciName == 'Acanthodactylus schreiberi', SciName := 'Acanthodactylus boskianus']
+reptiles[SciName == 'Eumeces schneideri schneideri', SciName := 'Eumeces schneiderii']
+reptiles[SciName == 'Mediodactylus kotschyi', SciName := 'Mediodactylus orientalis']
+reptiles[SciName == 'Mesalina guttulata', SciName := 'Mesalina bahaeldini']
+reptiles[SciName == 'Rhinotyphlops simoni', SciName := 'Letheobia simoni']
+reptiles[SciName == 'Testudo werneri', SciName := 'Testudo kleinmanni']
+reptiles[SciName == 'Malpolon monspessulanus', SciName := 'Malpolon insignitus']
+reptiles[SciName == 'Trachylepis vittata', SciName := 'Heremites vittatus']
+reptiles[!SciName %in% species.list$SciName, unique(SciName)] # No more species missing in the official species list
+reptiles[is.na(SciName), sort(unique(heb_name))]
+reptiles[is.na(SciName) & !is.na(heb_name)] # All records without a scientific name also have no Hebrew names
+reptiles[is.na(SciName), sort(unique(count_individuals))] # Missing scientific names are always zero counts
+
+# Temperature
+reptiles[is.na(temp_sun) & is.na(temp_shade), .N] # 969 records with no temperature data
+reptiles[is.na(temp_sun) & is.na(temp_shade), .N, keyby = .(unit)] # fairly evenly spread
+surveys.with.sun_temp <- reptiles[!is.na(temp_sun), .(survey_ID = unique(survey_ID)), keyby = .(campaign, unit)]
+reptiles[survey_ID %in% surveys.with.sun_temp$survey_ID, uniqueN(survey_ID)] # 431 surveys with sun temperature
+reptiles[!survey_ID %in% surveys.with.sun_temp$survey_ID, uniqueN(survey_ID)] # 300 surveys without sun temperature
+reptiles[!survey_ID %in% surveys.with.sun_temp$survey_ID, uniqueN(survey_ID), keyby = unit] # surveys without temperature data are prevalent
+# Alas, temperature cannot be used as a predictor due to many surveys that lack it
+quantile(reptiles[, temp_shade], na.rm = T) # from 14 to 42.5 degrees
+quantile(reptiles[, temp_sun], na.rm = T) # 511.0 degrees make no sense!
+reptiles[temp_sun == 511, temp_sun := 51.1] # 51.1 is still an extreme temperature, but it makes more sense
+
+reptiles[, ':=' (scaled.temp.shade = scale(temp_shade), scaled.temp.sun = scale(temp_sun))] # Scale predictors
+GGally::ggpairs(reptiles[, .(scaled.temp.shade, scaled.temp.sun)]) 
+# obviously, the two temperature measures are highly and significantly correlated (0.703)
+
+# Number of stones:
+reptiles[, sort(unique(stones_flipped))] # From zero to 240 stones
+reptiles[, uniqueN(stones_flipped), keyby = survey_ID][V1 != 1] # Sanity check: empty data.table = only one number of stones flipped per survey
+reptiles[(unit %like% 'Coast' | unit %like% 'Sand'), sort(unique(stones_flipped)), keyby = survey_ID][is.na(V1)]
+reptiles[!(unit %like% 'Coast' | unit %like% 'Sand'), sort(unique(stones_flipped)), keyby = survey_ID]
+reptiles[!(unit %like% 'Coast' | unit %like% 'Sand'), sort(unique(stones_flipped)), keyby = survey_ID][is.na(V1)] # no missing numbers of stones flipped
+bla <- merge(reptiles, reptiles[!is.na(stones_flipped), sort(unique(stones_flipped)), keyby = survey_ID], by = 'survey_ID', all.x = T)
+bla[V1 != stones_flipped] # sanity check
+bla[stones_flipped != V1]
+bla[!(unit %like% 'Sand' | unit %like% 'Coast'), .N, keyby = .(stones.flipped.known = !survey_ID %in% bla[is.na(V1), unique(survey_ID)])]
+# only 598 surveys have information about the number of stones flipped (580 surveys have no such info)
+
+hist(reptiles[!(unit %like% 'Coast' | unit %like% 'Sand'), sort(unique(stones_flipped)), keyby = survey_ID][, V1]) # Peak at 50-100 stones; about 30 surveys with fewer than 30 stones
+reptiles[!(unit %like% 'Coast' | unit %like% 'Sand'), sort(unique(stones_flipped)), keyby = survey_ID][V1 < 30, .N]
+
+## Abundance corrections
+# Indirect observations abundance should be set to 1
+
+# convert all "tracks" observations to a single observation per plot-year-species combination,
+# with an individual count of 1
+# first reduce multiple track observation of the same species from the same year-plot to a
+# single observation
+reptiles[activity=="tracks",`:=`(track_obs_id=seq_len(.N),grp_id = .GRP),by=.(survey_ID,SciName)]
+reptiles.backup <- copy(reptiles) # Back up the data.table before removing "excessive" observations in field signs of species' presence
+reptiles <- reptiles[track_obs_id==1 | is.na(track_obs_id)]
+
+# now convert count of individuals to 1 in all observations of tracks
+reptiles[track_obs_id==1,count_individuals:=1]
+
+# convert all "eggs" observations to a single observation per plot-year-species combination,
+# with an individual count of 1
+# first reduce multiple observation of the same species from the same year-plot to a
+# single observation
+reptiles[activity=="eggs",`:=`(track_obs_id=seq_len(.N),grp_id = .GRP),by=.(survey_ID,SciName)]
+reptiles <- reptiles[track_obs_id==1 | is.na(track_obs_id)]
+
+# now convert count of individuals to 1 in all observations
+reptiles[track_obs_id==1,count_individuals:=1]
+
+# convert all "eggshell" observations to a single observation per plot-year-species combination,
+# with an individual count of 1
+# first reduce multiple observation of the same species from the same year-plot to a
+# single observation
+reptiles[activity=="eggshell",`:=`(track_obs_id=seq_len(.N),grp_id = .GRP),by=.(survey_ID,SciName)]
+reptiles <- reptiles[track_obs_id==1 | is.na(track_obs_id)]
+
+# now convert count of individuals to 1 in all observations
+reptiles[track_obs_id==1,count_individuals:=1]
+
+# Observations in over 10 individuals should be set to 1
+reptiles[count_individuals > 9, .N] # 3 such records
+reptiles[count_individuals > 9, count_individuals := 1]
+
+# convert all character vectors to factors
+changeCols <- colnames(reptiles)[which(as.data.table(as.vector(reptiles[,lapply(.SD, class)]))[1,]=="character")]
+reptiles[,(changeCols):= lapply(.SD, as.factor), .SDcols = changeCols]
+unit_names <- sort(unique(reptiles$unit))
+
+# Convert to wide format (cast):
+str(reptiles)
+# Define the left hand side (LHS) of the casting function (i.e. the variables defining the survey event itself rather than species found in the survey = the identity variables):
+LHS <- c('unit', 'year','campaign', 'subunit', 'site', 'point_name','survey_ID', 'Date', 'sin.dist.21.June','cos.dist.21.June',
+         'sin.dist.noon','cos.dist.noon','settlements','agriculture','dunes','habitat','mean.lon','mean.lat')
+# Cast the data according to the left hand side (the identity variables):
+rept_cast <- dcast.data.table(reptiles,as.formula(paste(paste(LHS, collapse = "+"), "~ SciName")),
+                               fun.aggregate = sum, value.var = "count_individuals")
+str(rept_cast)
+names(rept_cast)
+rept_cast.abnd <- rept_cast[, 23:length(rept_cast)] # Subset only the species' fields as the response variables
+rept_cast.abnd <- as.matrix(rept_cast.abnd) # Convert to matrix for gllvm
+
+rept.env <- as.data.table(rept_cast[, 1:20]) # subset the environmental predictors of the reptiles data 
+str(rept.env)
+
+write_excel_csv(rept_cast, file = 'Output/Basic matrix - plots-campaign rows, species columns - individual counts.csv')
+```
+## Incidence matrix
+Here we will generate and export basic data incidence matrix.
+
+```{r}
+# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
+### 4. Incidence matrix----
+reptiles[, Occurrence := ifelse(count_individuals > 0, 1, 0)]
+rept.incidence <- dcast(reptiles[count_individuals > 0], as.formula(paste(paste(LHS, collapse = "+"), "~ SciName")),
+                   value.var = 'Occurrence', fun.aggregate = mean)
+bla <- as.data.frame(rept.incidence)
+bla[is.na(bla)] <- 0
+rept.incidence <- bla
+rm(bla)
+any(rept.incidence[, 21:length(rept.incidence)] > 1) # are any incidence values greater then 1? This should be FALSE
+# too.many.incidences <- rept.incidence %>% filter(if_any(all_of(names(rept.incidence[, 21:length(rept.incidence)])), ~ . > 1))
+rept.incidence <- as.data.table(rept.incidence)
+rept.incidence
+write_excel_csv(rept.incidence, file = 'Output/Reptile incidence table T0-T4.csv')
+
+```
+
+## Define rare species
+Although we decided not to exclude rare reptile species from the analyses, I add this here for completeness:
+
+```{r}
+# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
+
+### 5. Define rare species (to be excluded from certain analyses)----
+# cutoff for rare species - minimum number of plots in which the species was observed. The key is two plots per campaign containing 30 plots, rounded to the nearest integer.
+# an additional cutoff is a minimum of 10 individuals.
+# plot numbers are as follows:
+reptiles[, .(no.of.plots = uniqueN(point_name), no.of.surveys = uniqueN(survey_ID)), keyby = unit]
+min_plots_cutoff <- reptiles[,.(campaign_num=uniqueN(campaign)), by=unit][order(unit)][,plots_per_camp:= reptiles[,
+          uniqueN(conc_lat_lon), keyby = unit][, V1]][,cutoff:=round(campaign_num*plots_per_camp/30)][cutoff<10,cutoff:=10]
+# First condition: Less than one occurrence per campaign with 30 plots:
+
+reptiles[, uniqueN(conc_lat_lon), keyby = .(unit, campaign)] # There are more than 9 plots per campaign - we need to adjust
+reptiles[, .(no.of.plots = uniqueN(conc_lat_lon)), keyby = .(unit, campaign)][, .(adjusted.min.ind = round(no.of.plots/30*2)), keyby = .(unit,campaign)] # T1's minimum no. of individuals should be 1 and not two
+
+rare.species1 <- reptiles[, .(no.of.occurrences = sum(Occurrence)), keyby = .(unit, campaign, Species = str_replace_all(SciName, '_', ' '))][no.of.occurrences < 2,
+                                                                                                                                       .(Species = sort(unique(as.character(Species))), condition1 = 'Fewer than two occurrence per campaign'), keyby = unit]
+rare.species1
+
+# Second condition: fewer than 10 individuals overall:
+species.freq <- reptiles[count_individuals > 0, .(total.no.of.ind = sum(count_individuals)),
+                     keyby = .(unit, heb_name, SciName)] # Species frequencies; originally, 37 species
+species.freq #  Species frequencies; 
+species.freq[, uniqueN(SciName)] # originally, 52 species
+rare.species2 <- species.freq[total.no.of.ind < 10, .(Species = SciName, condition2 = 'Fewer than 10 individuals overall'), keyby = unit]
+rare.species2
+
+# Create a species list from both conditions:
+rare.species <- merge(rare.species1, rare.species2, by = c('unit', 'Species'), all = T) # combine species lists
+rare.species <- merge(rare.species, species.list[, .(Species = unique(SciName)), keyby = heb_name], by = 'Species', all.x = T) # Add Hebrew names
+setcolorder(rare.species, c('unit','Species', 'heb_name')); setorder(rare.species, unit, Species, heb_name)
+rare.species
+rare.species[, .(no.of.rare.spp = uniqueN(Species)), keyby = unit] # no fewer than 19 rare species in the semi desert
+write_excel_csv(rare.species, file = 'Output/Rare species to be removed from certrain analyses.csv')
+rm(rare.species1, rare.species2) # clean up
+
+# Indicate rare species per unit
+reptiles <- merge(reptiles, rare.species[, .(SciName = Species, unit, is.rare.in.unit = T)], by = c('unit', 'SciName'), all.x = T)
+reptiles[is.na(is.rare.in.unit), is.rare.in.unit := F]
+reptiles[survey_ID %in% reptiles[is.rare.in.unit == F, unique(survey_ID)], unique(survey_ID)]
+reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = is.rare.in.unit] # 674 surveys with at least one non-rare species
+reptiles[count_individuals > 0, .(no.of.spp = uniqueN(SciName)), keyby = .(unit, is.rare.in.unit)] # sometimes there are more rare species than non-rare ones
+setorder(reptiles, unit, campaign, subunit, site, conc_lat_lon, survey_ID)
+```
+Note the large number of rare species out of the total.
+
+Age of the reptiles
+```{r}
+age.dist  <- reptiles[observation_type == 'direct', .(total.individuals = sum(count_individuals)), keyby = .(survey_ID, age)]
+
+ggplot(data = age.dist, aes(color = age, x = age, y = total.individuals)) + geom_violin()
+```
+```{r}
+ggplot(data = reptiles[count_individuals > 0], aes(color = age, x = age, y = count_individuals)) + geom_jitter(height = 0) + geom_boxplot() 
+```
+```{r}
+reptiles[count_individuals > 2, .N, keyby = age]
+```
+## Export the wrangled data base:
+```{r}
+str(reptiles)
+setorder(reptiles, unit, campaign, year, site, settlements, agriculture, habitat, dunes, Date, ITime, mean.lat, conc_lat_lon, SciName,
+         heb_name) # Make sure the data are ordered reasonably
+setcolorder(reptiles, c('unit', 'campaign', 'year', 'site', 'point_name', 'mean.lat', 'mean.lon','settlements', 'agriculture', 'habitat', 'dunes', 'Date',
+                        'ITime', 'SciName', 'heb_name', 'count_individuals')) # Order the columns reasonably
+write_excel_csv(reptiles, 'data/wrangled reptile data T0-T4.csv')
+save(reptiles, file = 'data/wrangled reptile data T0-T4.Rdata')
+```
+
+## Alpha diveristy
+Generate a table of alpha diversity: species richness, total reptile abundance and geometric mean abundance per survey (defined here as a unique plot-campaign combination).
+
+```{r}
+# Species richness
+sp.richness.data <- reptiles[count_individuals > 0, .(species.richness = uniqueN(SciName)), keyby = LHS]
+sp.richness.data[, uniqueN(survey_ID)] # 630 surveys over all
+sp.richness.data[, .N, keyby = survey_ID][N > 1] # 2 cases of more than one row per survey
+sp.richness.data[survey_ID %in% sp.richness.data[, .N, keyby = survey_ID][N > 1, survey_ID]]
+reptiles[survey_ID %in% sp.richness.data[, .N, keyby = survey_ID][N > 1, survey_ID], .SD, .SDcols = LHS] # Mean coordinates are NA in two rows in Kerem Maharal Kkl Plantings 1
+sp.richness.data[, min(species.richness)] # no zero species richness plots here though
+sp.richness.data <- rbind(sp.richness.data, reptiles[count_individuals == 0, .(species.richness = 0), keyby = LHS]) # add all the zero species richness surveys
+sp.richness.data[, uniqueN(survey_ID)] # Now there are 697 surveys
+
+# Total plot abundance, with rare species
+total.abnd <- reptiles[, .(total.abundance = sum(count_individuals)), keyby = LHS]
+total.abnd[, uniqueN(survey_ID)] # 697 surveys over all, same as with the species richness
+
+# Total plot abundance, without rare species
+total.abnd.no.rare <- reptiles[is.rare.in.unit == F | count_individuals == 0, .(total.abundance = sum(count_individuals)), keyby = LHS]
+total.abnd.no.rare[, uniqueN(survey_ID)] # 645 surveys including only non-rare species
+reptiles[is.rare.in.unit == F, .(total.abundance = sum(count_individuals)), keyby = LHS]
+
+# geometric mean abundance, without rare species - THIS IS IRRELEVANT AS WE DECIDED NOT TO CALCULATE GMA
+rept.total.abnd.per.sp <- reptiles[is.rare.in.unit == F, .(Total.sp.abnd = sum(count_individuals, na.rm = T)),
+                                                  keyby = c(LHS, 'SciName')]
+rept.total.abnd.per.sp[!is.na(Total.sp.abnd) & Total.sp.abnd > 0, uniqueN(survey_ID)] # 578 surveys including non-rare species
+gma.no.rare <- rept.total.abnd.per.sp[, .(geom.mean.abundance = exp(mean(log(Total.sp.abnd)))), keyby = c(LHS)]
+gma.no.rare[, uniqueN(survey_ID)] # 640 surveys including non-rare species
+
+reptiles[, .(total.count = sum(count_individuals)), keyby = .(unit, is.rare.in.unit)] # Note that rare species consist a considerable portion of the data
+
+# Define a table of all three alpha diversity indices:
+alpha.div <- merge(sp.richness.data, total.abnd, by = LHS, all = T) # merge species richness and total plot abundance (including rare species)
+alpha.div <- merge(alpha.div, gma.no.rare, by = LHS, all = T) # add also geometric mean abundance (omitting rare species)
+# alpha.div <- merge(alpha.div, reptiles[, .(year = unique(year)), keyby = .(unit, campaign)], by = c('unit', 'campaign'), all.x = T) # add the first year of the campaign
+alpha.div[, ':=' (year.count = year - min(year), year.fct = as.factor(year)), keyby = unit]
+alpha.div[, .(first.year = min(year), first.year.count = min(year.count)), keyby = unit]
+
+alpha.div[is.na(species.richness), .N] # no cases of missing species richness
+alpha.div[is.na(total.abundance), .N] # no  cases of missing total abundance
+alpha.div[is.na(geom.mean.abundance), .N] # 53 cases of missing geometric mean abundance, though!
+alpha.div[is.na(geom.mean.abundance) & !survey_ID %in% reptiles[is.rare.in.unit == T, survey_ID], ] # all of them in surveys where only rare species were found
+reptiles[survey_ID %in% alpha.div[is.na(geom.mean.abundance), survey_ID] & is.rare.in.unit == F,
+         .(survey_ID, SciName, count_individuals, is.rare.in.unit)]
+rept.total.abnd.per.sp[survey_ID %in% alpha.div[is.na(geom.mean.abundance), survey_ID],
+         .(survey_ID, SciName, Total.sp.abnd)] # 
+gma.no.rare[is.na(geom.mean.abundance), unique(survey_ID)]
+
+alpha.div[, .(no.of.surveys = uniqueN(survey_ID))] # 697 surveys
+alpha.div[, .(no.of.surveys = uniqueN(survey_ID)), keyby = unit] # 5 units
+
+str(alpha.div)
+GGally::ggpairs(alpha.div[, .(unit, year.count, sin.dist.21.June, species.richness, total.abundance)], progress = F) # species richness and total abundance are highly correlated (0.82)
+```
+
+## Coastal Plain Dune
+Species richness data exploration:
+```{r}
+### Coastal Plain Dunes----
+# Biodiversity indices - Coastal Plain Dunes----
+reptiles[unit %like% 'Coast' & !is.na(SciName), .(total.abnd = sum(count_individuals), total.sp.rich = uniqueN(SciName))]
+reptiles[unit %like% 'Coast', .(no.of.surveys = uniqueN(survey_ID)), keyby = .(year, campaign, site, dunes, settlements)]
+
+coast <- alpha.div[unit == 'Coastal Plain Sands'] # subset the coast plain sands
+str(coast)
+coast[is.na(settlements) | is.na(dunes)] # no missing variables
+
+GGally::ggpairs(coast[, .(dunes, settlements, year.count, sin.dist.21.June, cos.dist.21.June, # we do not include the time of day in the sands protocol as it includes both morning and afternoon survey in the same plot
+                           species.richness, total.abundance)], progress = F)
+
+# Dot plots
+coast.sp.rich.dotplot <- ggplot(data = coast, aes(x = species.richness, y = site)) +
+  geom_point(aes(color = dunes, shape = settlements)) +  geom_line(aes(group = site)) +
+  facet_grid(campaign ~ ., scales = 'free_y') + labs(title = 'Reptile Species Richness in the Coastal Sands', y = 'Site', x = 'Species Richness', color = 'Dune Type', shape = 'Proximity to settlements') + 
+  scale_color_manual(values = okabe) + scale_x_continuous(limits = c(0, coast[, max(species.richness) + 1]),
+                                                          breaks = seq(0, coast[, max(species.richness) + 1], by = 2)) +
+  theme_bw() + theme(legend.position = 'bottom',
+                     plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+coast.sp.rich.dotplot
+ggsave('Figures/Reptile species richness in the coastal sands - dotplot.png', plot = coast.sp.rich.dotplot)
+
+# The relevant predictors are distance to settlement, dunes, and temporal trend
+# Plot species richness
+ggplot(data = coast, aes(x = dunes, color = settlements, y = species.richness)) + geom_boxplot() + 
+  geom_jitter(height = 0, width = 0.3) +  facet_wrap(. ~ year) + theme_bw()
+# There are no semi-shifting dunes in near plots - this might be problematic with the model; 2014-2015 seem lower than the later years
+```
+The models are rank-deficient: in the Near plots there are only semi-shifting dunes (this is the study design). 
+Also note the site identities:
+
+```{r}
+coast[, sort(unique(site))]
+```
+Following the practice for arthropods recommended by Ittai Renan and a similar recommendation by Ron Chen, we will replace the site identity with a comparison between the northern Coastal Plain dunes (represented only by Caesarea) and the southern ones (all other sites):
+
+```{r}
+coast[, Region := ifelse(site == 'Caesarea', 'North', 'South')]
+coast[, .(site = sort(unique(site))), keyby = Region]
+```
+Now, as the Region predictor has only two levels (North or South), we cannot treat it as a random predictor. Instead, it will be treated as a fixed predictor that will not be allowed to drop due to AIC.
+
+Species richness model selection:
+
+```{r}
+# Coastal Dunes species richness - glmm model selection ----
+coast[, .(mean.species.richness = mean(species.richness), var.sp.rich = var(species.richness)), keyby = .(year)] # 2014-2015 are lower
+coast[, .(mean.species.richness = mean(species.richness), var.sp.rich = var(species.richness)), keyby = .(settlements)] # same
+coast[, .(mean.species.richness = mean(species.richness), var.sp.rich = var(species.richness)), keyby = .(dunes)] # same
+coast[, .(mean.species.richness = mean(species.richness), var.sp.rich = var(species.richness)), keyby = .(site)] # Netiv Haasara is lower than the rest at 3.3 species vs. 4-5
+
+coast[, .(mean.richness = mean(species.richness), var.richness = var(species.richness))] # var < mean -> try Poisson models
+
+# Full model, Poisson response
+coast.sp.rich.model.full.Poisson <- glmmTMB(species.richness ~ settlements * dunes + sin.dist.21.June + cos.dist.21.June + Region,  family = 'poisson', data = coast)
+summary(coast.sp.rich.model.full.Poisson)
+cat('PHI = '); deviance(coast.sp.rich.model.full.Poisson)/df.residual(coast.sp.rich.model.full.Poisson)
+drop1(coast.sp.rich.model.full.Poisson) # can drop sin seasonality
+```
+PHI (deviance(Poisson model)/df.residual(Poisson model)) < 1 so we prefer the Poisson models.
+We get warnings of rank deficiency and cannot obtain any AIC score without omitting the interaction between settlements and dune type. So, we fit models without this interaction:
+
+```{r}
+coast.sp.rich.model1 <- glmmTMB(species.richness ~ settlements + dunes + sin.dist.21.June + cos.dist.21.June + Region,  family = 'poisson', data = coast)
+summary(coast.sp.rich.model1)
+drop1(coast.sp.rich.model1) 
+```
+
+Now we have an AIC score (644.5) and no warnings. The function drop1 suggests we can further drop the distance to settlements. Proceed to dropping predictors one by one due to AIC selection:
+
+```{r}
+coast.sp.rich.model2 <- glmmTMB(species.richness ~ dunes + sin.dist.21.June + cos.dist.21.June + Region,  family = 'poisson', data = coast)
+summary(coast.sp.rich.model2)
+drop1(coast.sp.rich.model2) 
+```
+AIC has decreased and can be further decreased if we drop sine seasonality as well:
+
+```{r}
+coast.sp.rich.model3 <- glmmTMB(species.richness ~ dunes + cos.dist.21.June + Region,  family = 'poisson', data = coast)
+summary(coast.sp.rich.model3)
+drop1(coast.sp.rich.model3) 
+```
+We can drop the dune type too:
+
+```{r}
+coast.sp.rich.model4 <- glmmTMB(species.richness ~ cos.dist.21.June + Region,  family = 'poisson', data = coast)
+summary(coast.sp.rich.model4)
+drop1(coast.sp.rich.model4) 
+```
+Although AIC can be lowered by removing the Region as well, we refrain from doing so as it is a substitute for the site (and plot) identities and is part of the study design. Hence, we have selected our final model, and now we should draw the model diagnostics:
+```{r}
+# The chosen model is coast.sp.rich.model4 (seasonal and diel patterns)
+summary(coast.sp.rich.model4)
+coast.sp.rich.sim.res <- simulateResiduals(coast.sp.rich.model4) # simulate the residuals using DHARMa package for model diagnostics
+plot(coast.sp.rich.sim.res)# The quantile, KS and dispersion tests are significant
+png('Analysis/Model diagnostics/Coastal Plain species richness QQ plot.png') # Export the QQ plot
+plot(coast.sp.rich.sim.res) 
+dev.off()
+```
+The QQ plot does not look good: the Kolmogorov-Smirnov test is significant (meaning the data came from a different distribution than the model's) and the dispersion test is significant as well. That might mean either over-dispersion (meaning increased type I error rate) or under-dispersion (meaning increased type II error, i.e. lower statistical power). We should investigate which one is it. In addition, the scaled residuals (scaled from 0 to 1, where 0 meaning all observed values are higher than the prediction and 1 meaning all observed values are lower than the predictions) test significant. Let's further explore these issues:
+
+```{r}
+testQuantiles(coast.sp.rich.sim.res, plot = F) # 
+hist(coast.sp.rich.sim.res$fittedResiduals) # right-tailed distribution
+quantile(coast.sp.rich.sim.res$fittedResiduals) # median residual = -0.21; inter-quartile range for residuals is -0.77 to +0.77
+testDispersion(coast.sp.rich.sim.res, alternative = 'less') # Significant (p < 2.2e-16) -> underdispersion
+testDispersion(coast.sp.rich.sim.res, alternative = 'greater', plot = F) # Insignificant (p = 1) -> not overdispersion
+testZeroInflation(coast.sp.rich.sim.res, alternative = 'greater') # p = 1, meaning there is no zero-inflation
+testZeroInflation(coast.sp.rich.sim.res, alternative = 'less', plot = F) # Significant (p = 0.04) -> fewer zeroes than expected
+coast.sp.rich.model4b <- glmmTMB(species.richness ~ cos.dist.21.June + Region, family = 'poisson', data = coast, ziformula = ~ cos.dist.21.June + Region) # try correcting for zero-inflation
+summary(coast.sp.rich.model4b) # AIC = 645.3 - getting worse!
+```
+We found that the data are under-dispersed (i.e. lower statistical power) and also that there are less zeroes than expected (p = 0.052 - marginally insignificant). Nevertheless, including zero inflation in the model formula did not improve model fit reduced it. 
+Let's document the AIC and BIC of all examined models as an R data.table and export it as a csv for future reference:
+
+```{r}
+file.remove('Analysis/Coastal Dunes - species richness model selection.txt')
+for (model in c(ls()[grep('*coast.sp.rich.model', ls())])){
+  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
+                 file = 'Analysis/Coastal Dunes - species richness model selection.txt', append = T)
+}
+# load('Analysis/Coast Dunes - Species richness models.Rdata')
+save(list = ls()[grep('*coast.sp.rich.model', ls())], file = 'Analysis/Coast Dunes - Species richness models.Rdata') # back up the models
+capture.output(cat('The best fitting model for species richness in the Coastal Dunes is coast.sp.rich.model4.'), 
+               summary(coast.sp.rich.model4), cat('\n----\nNote that the model is underdispersed (i.e. has low power):\n'),
+               testDispersion(coast.sp.rich.sim.res, alternative = 'less', plot = F), # Significant (p < 2.2e-16) -> underdispersion
+               testDispersion(coast.sp.rich.sim.res, alternative = 'greater', plot = F), # Insignificant (p = 1) -> not overdispersion
+               testZeroInflation(coast.sp.rich.sim.res, alternative = 'greater', plot = F), # p = 1, meaning there is no zero-inflation
+               testZeroInflation(coast.sp.rich.sim.res, alternative = 'less', plot = F), # Significant (p < 2.2e-16) -> fewer zeroes than expected
+file = 'Output/Coastal Dunes species richness - best fitting model.txt', append = F)
+
+# Create a table comparing total abundance models:
+sp.rich.comparison <- data.table(unit = '', model = '',  data = '', family = '', formula = '', no.of.preds = 0, AIC = 0, BIC = 0) # Create a data.table to be filled by a loop
+sp.rich.comparison <- sp.rich.comparison[AIC > 0] # empty the data.table
+
+for(model in ls()[grep('*coast.sp.rich.model.', ls())]){
+  sp.rich.comparison <- rbind(sp.rich.comparison,
+                                 data.table(unit = 'Coast Sands', model = model,
+                                            no.of.preds = length(attr(get(model)$modelInfo$terms$cond$fixed, 'term.labels')),
+                                            AIC = AIC(get(model)), BIC = BIC(get(model)),
+                                            data = as.character(get(model)$call$data),
+                                            family = as.character(get(model)$call$family),
+                                            formula = as.character(get(model)$call$formula)))
+}
+sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% 'species.richness')] # remove redundant rows
+sp.rich.comparison <- unique(sp.rich.comparison)
+setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
+sp.rich.comparison[unit == 'Coast Sands'] # View the table
+write_excel_csv(sp.rich.comparison, file = 'Analysis/Species richness models of reptiles - AIC comparison.csv')
+```
+Once we are done with the models not chosen, we can remove them from memory:
+
+```{r}
+rm(list = setdiff(ls()[grep('*coast.sp.rich.model', ls())], c('coast.sp.rich.model4'))) # Clean up
+```
+
+We do not bother predicting the species richness in the coastal plain since the chosen model contained no researcher hypotheses.
+Proceed to analyzing total reptile abundance:
+
+Some data exploration:
+```{r}
+# Coastal Dunes total abundance - glmm model selection ----
+coast.abnd.dotplot <- ggplot(data = coast, aes(x = total.abundance, y = site)) +
+  geom_point(aes(color = dunes, shape = settlements)) +  geom_line(aes(group = site)) +
+  facet_grid(campaign ~ ., scales = 'free_y') + labs(title = 'Reptile Total Abundance in the Coastal Sands', y = 'Site', x = 'Total Abundance', color = 'Dune Type', shape = 'Proximity to settlements') + 
+  scale_color_manual(values = okabe) + scale_x_continuous(limits = c(0, coast[, max(total.abundance) + 1]),
+                                                          breaks = seq(0, coast[, max(total.abundance) + 1], by = 2)) +
+  theme_bw() + theme(legend.position = 'bottom',
+                     plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+coast.abnd.dotplot
+ggsave('Figures/Reptile Total Abundance in the coastal sands - dotplot.png', plot = coast.abnd.dotplot)
+
+str(coast)
+coast[, .(mean.abundance = mean(total.abundance, na.rm = T), var.abundance = var(total.abundance, na.rm = T))] # var >> mean -> try negative binomial
+
+ggplot(data = coast, aes(x = dunes, color = settlements, y = total.abundance)) + geom_boxplot() + labs(title = 'Coastal Sands Reptiles') + geom_jitter(height = 0, width = 0.3) +  facet_wrap(. ~ year) + theme_bw() # 2017-2019 seem higher than the other years
+ggsave('Analysis/Coastal Sands total reptile abundance - observations.png')
+```
+Ashdod semi-shifting Far in T0 and in T3 had counts of 17(!) reptiles, which seems like too much. Let's have a look at that:
+
+```{r}
+reptiles[site == 'Ashdod' & campaign %in% c('T0', 'T3') & settlements == 'Far' & dunes == 'semi-shifting', .(total.individuals = sum(count_individuals)), keyby = .(survey_ID, campaign, Date)] 
+```
+In both cases this is T3_Ashdod Far Semi-Shifting 3.
+
+```{r}
+reptiles[point_name == 'Ashdod Far Semi-Shifting 3' & campaign %in% c('T0', 'T3'), .(total.ind = sum(count_individuals)), keyby = .(survey_ID, campaign, Date, SciName, heb_name)]
+```
+We have either 15 (T0) or 12 (T3) individuals of Acanthodactylus scutellatus - does this make sense? What can we do about it if not?
+
+```{r}
+reptiles[point_name == 'Ashdod Far Semi-Shifting 3' & campaign %in% c('T0', 'T3'), .(total.ind = sum(count_individuals)), keyby = .(survey_ID, campaign, Date, SciName, heb_name, age, sex_new, observation_type, material, activity, orientation, substrate)]
+```
+```{r}
+reptiles[point_name == 'Ashdod Far Semi-Shifting 3' & campaign %in% c('T0', 'T3'), .(survey_ID, campaign, Date, SciName, heb_name, count_individuals, age, sex_new, observation_type, material, activity, orientation, substrate)]
+```
+For the moment, we do not take any action and proceed with modelling abundance.
+Note that we do NOT include triple interactions in the full model but rather 3 combinations of double interactions. 
+Model selection:
+```{r}
+# Full model, Poisson response
+coast.total.abnd.model.full.Poisson <- glmmTMB(total.abundance ~ year.count * settlements + year.count * dunes + dunes * settlements + sin.dist.21.June + cos.dist.21.June + Region, family = 'poisson', data = coast)
+summary(coast.total.abnd.model.full.Poisson) # All p-values, AIC and BIC are NAs
+deviance(coast.total.abnd.model.full.Poisson)/df.residual(coast.total.abnd.model.full.Poisson) # 
+```
+As the PHI (deviance divided by residual degrees of freedom) < 1, we proceed with Poisson models.
+
+```{r}
+drop1(coast.total.abnd.model.full.Poisson)
+```
+```{r}
+# Omit dunes * settlements interaction, Poisson:
+coast.total.abnd.model1 <- glmmTMB(total.abundance ~ year.count * settlements + year.count * dunes + sin.dist.21.June + cos.dist.21.June + Region, family = 'poisson', data = coast)
+summary(coast.total.abnd.model1)
+drop1(coast.total.abnd.model1) 
+```
+We can drop the interaction between trend and distance to settlements:
+
+```{r}
+# Omit trend * settlements interaction, Poisson:
+coast.total.abnd.model2 <- glmmTMB(total.abundance ~ settlements + year.count * dunes + sin.dist.21.June + cos.dist.21.June + Region, family = 'poisson', data = coast)
+summary(coast.total.abnd.model2)
+drop1(coast.total.abnd.model2) 
+```
+We can drop the trend and dune type interaction:
+```{r}
+# Omit trend * settlements interaction, Poisson:
+coast.total.abnd.model3 <- glmmTMB(total.abundance ~ settlements + year.count + dunes + sin.dist.21.June + cos.dist.21.June + Region, family = 'poisson', data = coast)
+summary(coast.total.abnd.model3)
+drop1(coast.total.abnd.model3) 
+```
+We can drop the trend altogether as delta AIC < 2:
+```{r}
+# Omit trend * settlements interaction, Poisson:
+coast.total.abnd.model4 <- glmmTMB(total.abundance ~ settlements + dunes + sin.dist.21.June + cos.dist.21.June + Region, family = 'poisson', data = coast)
+summary(coast.total.abnd.model4)
+drop1(coast.total.abnd.model4) 
+```
+We can drop the dune type as well and still have delta AIC < 2 from model 3 (that has the minimum AIC so far):
+```{r}
+# Omit trend * settlements interaction, Poisson:
+coast.total.abnd.model5 <- glmmTMB(total.abundance ~ settlements + sin.dist.21.June + cos.dist.21.June + Region, family = 'poisson', data = coast)
+summary(coast.total.abnd.model5)
+drop1(coast.total.abnd.model5) 
+```
+Now we can no longer drop predictors with increasing AIC by more than 2 points compared to its minimum level so far, so we choose model 5 for abundance. We should now test the selected model via diagnostic plots:
+
+```{r}
+coast.abnd.sim.res <- simulateResiduals(coast.total.abnd.model5) # simulate the residuals using DHARMa package for model diagnostics
+plot(coast.abnd.sim.res) # No significant problems detected
+plot(coast.abnd.sim.res$fittedPredictedResponse, coast.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nCoastal Plain abundance model 5')
+plot(fitted(coast.total.abnd.model5), residuals(coast.total.abnd.model5), main = 'Response scale residuals\nCoastal Plain abundance model 5')
+
+# Export these graphs:
+png('Analysis/Model diagnostics/Coastal Plain abundance model 5 QQ Plot.png')
+plot(coast.abnd.sim.res)
+dev.off()
+
+png('Analysis/Model diagnostics/Coastal Plain abundance model 5 - DHARMa predicted response vs scaled residuals.png')
+plot(coast.abnd.sim.res$fittedPredictedResponse, coast.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nCoastl Plain abundance model 5') 
+dev.off()
+png('Analysis/Model diagnostics/Coastal Plain abundance model 5 -  fitted values vs residuals.png')
+plot(fitted(coast.total.abnd.model5), residuals(coast.total.abnd.model5), main = 'Response scale residuals\nCoastal Plain abundance')
+dev.off()
+# Plot the scaled residuals vs. fitted (predicted) response - no pattern here
+```
+There are no clear patterns/issues with the model fit.
+Back up all models, create a table comparing their AIC and BIC scores and keep only the selected model:
+```{r}
+file.remove('Analysis/Coastal Dunes - total abundance model selection.txt')
+for (model in c(ls()[grep('*coast.total.abnd.model', ls())])){
+  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
+                 file = 'Analysis/Coastal Dunes - total abundance model selection.txt', append = T)
+}
+# load('Analysis/Coast Dunes - total abundance models.Rdata')
+save(list = ls()[grep('*coast.total.abnd.model', ls())], file = 'Analysis/Coast Dunes - total abundance models.Rdata')
+capture.output(cat('The best fitting model for species richness in the Coastal Dunes is coast.total.abnd.model5.'), 
+               summary(coast.total.abnd.model5), 
+               testDispersion(coast.abnd.sim.res, alternative = 'less', plot = F), 
+               testDispersion(coast.abnd.sim.res, alternative = 'greater', plot = F), 
+               testZeroInflation(coast.abnd.sim.res, alternative = 'greater', plot = F), 
+               testZeroInflation(coast.abnd.sim.res, alternative = 'less', plot = F), 
+               file = 'Output/Coastal Dunes total abundance - best fitting model.txt', append = F)
+
+# Create a table comparing total abundance models:
+total.abnd.comparison <- data.table(unit = '', model = '',  data = '', family = '', formula = '', no.of.preds = 0, AIC = 0, BIC = 0) # Create a data.table to be filled by a loop
+total.abnd.comparison <- total.abnd.comparison[AIC > 0] # empty the data.table
+
+for(model in ls()[grep('*coast.total.abnd.model.', ls())]){
+  total.abnd.comparison <- rbind(total.abnd.comparison,
+                              data.table(unit = 'Coast Sands', model = model,
+                                         no.of.preds = length(attr(get(model)$modelInfo$terms$cond$fixed, 'term.labels')),
+                                         AIC = AIC(get(model)), BIC = BIC(get(model)),
+                                         data = as.character(get(model)$call$data),
+                                         family = as.character(get(model)$call$family),
+                                         formula = as.character(get(model)$call$formula)))
+}
+total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %like% 'total.abundance')] # remove redundant rows
+total.abnd.comparison <- unique(total.abnd.comparison)
+setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
+total.abnd.comparison[unit == 'Coast Sands'] # View the table
+write_excel_csv(total.abnd.comparison, file = 'Analysis/Coastal Dunes total abundance models of reptiles - AIC comparison.csv')
+
+rm(list = setdiff(ls()[grep('*coast.total.abnd.model', ls())], c('coast.total.abnd.model5'))) # Clean up
+```
+
+Since the chosen model includes a difference between near and far plots, we will try to predict its magnitude (without extrapolating):
+
+```{r}
+# Coastal Sands - predict reptile total abundance----
+summary(coast.total.abnd.model5)
+# Predict by the mean observed values
+reptiles[, sort(unique(unit))]
+quantile(reptiles[unit == 'Coastal Plain Sands', .(day.of.year = unique(yday(date))), by = survey_ID][, day.of.year])
+# Dates vary from 202 (July 21st) to 293 (October 20th) with a median of 263 (September 20th)
+
+quantile(reptiles[unit == 'Coastal Plain Sands', .(Time = unique(ITime)), by = survey_ID][, Time])
+# Hours vary from 05:40 to 19:40, with a median of 13:49:30
+
+## Calculate the mean radian angle of the date and time of sampling and use this for model fit to predict trends
+
+# Create a table to be filled by a loop with predictor values to be used for predictions
+reptiles[unit %like% 'Coast', .(no.of.surveys = uniqueN(survey_ID)), keyby = yday(Date)] # day 279 is the most common date
+yday(as.Date('2021-10-06')) # October 6th is day 279 in non-leap years
+reptiles[unit %like% 'Coast', .(no.of.surveys = uniqueN(survey_ID)), keyby = month(Date)] # August to October are equally the most common months
+reptiles[unit %like% 'Coast', .(no.of.surveys = uniqueN(survey_ID)), keyby = round(ITime)] # 16:00 to 18:00 is the most common hours
+plot(reptiles[unit %like% 'Coast', sort(ITime)])
+hist(reptiles[unit %like% 'Coast', ITime])
+reptiles[unit %like% 'Coast', .(no.of.surveys = uniqueN(survey_ID)), keyby = ITime] # this indeed seems to be the case...
+
+# Plot the model seasonal pattern
+reptiles[unit %like% 'Coast', unique(year)]
+coast.total.abnd.sea <- data.table(expand.grid(Date = seq.Date(as.Date('2014-01-01'), as.Date('2021-12-31'), by = 1), settlements = coast[, unique(settlements)], Region = c('North', 'South')))
+coast.total.abnd.sea[, ':=' (year = year(Date),
+                                          dist.21.June = ifelse(yday(Date) < 354,
+                                                                Date - as.Date(paste(year(Date), 6, 21, sep = '-')),
+                                                                Date - as.Date(paste(year(Date) + 1, 6, 21, sep = '-'))))]
+coast.total.abnd.sea <- coast.total.abnd.sea[year %in% reptiles[unit %like% 'Coast', unique(year)]]
+coast.total.abnd.sea[, ':=' (dist.21.June.radians = dist.21.June * pi / 182.5, # Convert to radians (multiply by pi and divide by half the number of days in a year), one harmonic
+                                          dist.21.June.radians.2h = 2*dist.21.June * pi / 182.5)] 
+setorder(coast.total.abnd.sea, Date, dist.21.June.radians)
+coast.total.abnd.sea[, ':=' (year.count = year - min(year))]
+coast.total.abnd.sea[, ':=' (sin.dist.21.June = sin(dist.21.June.radians), cos.dist.21.June = cos(dist.21.June.radians))] # Calculate the sin and cosine of the distance from June 21st
+coast.total.abnd.sea
+plot(coast.total.abnd.sea[year == 2017, Date], coast.total.abnd.sea[year == 2017,sin.dist.21.June],
+     main = 'Sine of distance to June 21st') # sanity check - should be a wave
+plot(coast.total.abnd.sea[year == 2017, Date], coast.total.abnd.sea[year == 2017,cos.dist.21.June],
+     main = 'Cosine of distance to June 21st') # sanity check - should be a wave
+
+bla <- predict(coast.total.abnd.model5, newdata = coast.total.abnd.sea, type = 'response', se.fit = T)
+coast.total.abnd.sea[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
+coast.total.abnd.sea[month(Date) %in% 9, .(mean.predicted.abnd = mean(predicted.abnd)), keyby = .(year)] 
+coast.total.abnd.sea
+
+# plot the seasonal predictions
+ggplot(data = coast.total.abnd.sea, aes(x = as.Date(paste(2017, month(Date), mday(Date), sep = '-')), y = predicted.abnd, color = settlements, linetype = Region, shape = Region)) + geom_line() +
+  geom_point(data = reptiles[unit %like% 'Coast', .(total.abnd = sum(count_individuals, na.rm = T)),
+                             keyby = .(Region = ifelse(site == 'Caesarea', 'North', 'South'), settlements, survey_ID, year(Date), as.Date(paste(2017, month(Date), mday(Date), sep = '-')))],
+             aes(x = as.Date, y = total.abnd)) + labs(x = 'Date', y = 'Abundance', title = 'Coastal Sands Reptiles',
+                                                      subtitle = 'Predicted and observed abundance') +
+  facet_wrap(. ~ year) + scale_x_date(date_labels = '%b')
+ggsave('Analysis/coast.total.abnd.model5 seasonal Predictions and observations in reptile total abundance in the Coastal Sand Dunes.png')
+```
+
+```{r}
+# Create a data.table for predictions
+coast.total.abnd.fit.data <- data.table(expand.grid(Date = as.Date('2017-08-15'), settlements = c('Far', 'Near'), Region = c('North','South')))
+coast.total.abnd.fit.data[, ':=' (dist.21.June = ifelse(yday(Date) < 354,
+                                                               Date - as.Date(paste(year(Date), 6, 21, sep = '-')),
+                                                               Date - as.Date(paste(year(Date) + 1, 6, 21, sep = '-'))))]
+coast.total.abnd.fit.data[, ':=' (dist.21.June.radians = dist.21.June * pi / 182.5, # Convert to radians (multiply by pi and divide by half the number of days in a year), one harmonic
+                                         dist.21.June.radians.2h = 2*dist.21.June * pi / 182.5)]
+setorder(coast.total.abnd.fit.data, dist.21.June.radians)
+coast.total.abnd.fit.data # seems ok
+coast.total.abnd.fit.data[, ':=' (sin.dist.21.June = sin(dist.21.June.radians), cos.dist.21.June = cos(dist.21.June.radians))] # Calculate the sin and cosine of the distance from June 21st
+coast.total.abnd.fit.data
+
+bla <- predict(coast.total.abnd.model5, newdata = coast.total.abnd.fit.data, type = 'response', se.fit = T)
+coast.total.abnd.fit.data[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
+coast.total.abnd.fit.data[, .(settlements, predicted.abnd, predicted.abnd.se)] # 
+coast.total.abnd.fit.data # Now the predictions finally make sense!
+write_excel_csv(coast.total.abnd.fit.data, 'Output/Reptile predicted total abundance in the Coastal Sands model7.csv')
+
+coast.total.abnd.pred <- melt(unique(coast.total.abnd.fit.data[, .(settlements, Region, predicted.abnd)]),
+                                     id.vars = c('settlements', 'Region'), variable.name = 'quality', value.name = 'predicted.abnd')
+setorder(coast.total.abnd.pred, settlements, Region)
+coast.total.abnd.pred # seems ok
+write_excel_csv(coast.total.abnd.pred, file = 'Output/Coastal sands - predictions of total reptile abundance.csv')
+```
+
+Calculate the mean abundance in Near and Far plots, and calculate the percent difference between the rounded values:
+```{r}
+coast.total.abnd.pred[, .(mean.pred.abnd = round(mean(predicted.abnd), 1)), keyby = settlements]
+coast.total.abnd.pred[, .(mean.pred.abnd = round(mean(predicted.abnd), 1)), keyby = settlements][, max(mean.pred.abnd)] / coast.total.abnd.pred[, .(mean.pred.abnd = round(mean(predicted.abnd), 1)), keyby = settlements][, min(mean.pred.abnd)] - 1
+```
+Hence, the mean predicted abundance is 8.3 reptiles in the Far plots compared to 7.0 reptiles in the Near plots (18.6% difference).
+
+```{r}
+# Effect plot of annual trend
+coast.abnd.trend.plot <- effect_plot(model = coast.total.abnd.model5, pred = settlements, data = coast,  colors = "Qual1",point.size = 4,
+                                                   line.colors = 'black', point.alpha = 0.25, interval = T, plot.points = T, partial.residuals = F, 
+                                                   jitter = c(0.1,0), int.type = 'confidence') + 
+  theme_minimal() + labs(y = strReverse('שפע כולל'), x = strReverse('קרבה לישובים')) +
+  scale_x_discrete(labels = c(strReverse('רחוק'),
+                              strReverse('קרוב'))) +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = 'bottom',
+        text = element_text(family = fontname, size = fontsize), axis.text = element_text(size = fontsize - 1),
+        panel.grid.major.y = element_line(color = 'grey90', linetype = 5, linewidth = 1),
+        panel.grid.minor = element_blank(), panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) 
+coast.abnd.trend.plot$layers[[2]]$geom_params$width <- 0.4
+coast.abnd.trend.plot
+
+Cairo::Cairo(file = 'Figures/Coastal Plain total abundance model5 effect plot - temporal trend.pdf', width = pdf_width, height = pdf_width*pdf_aspect_ratio,
+             type = "PDF", units = "mm")
+print(coast.abnd.trend.plot)
+dev.off()
+```
+### Inland Sands
+Next unit: the inland sands. Some exploration first:
+```{r}
+reptiles[unit %like% 'Inland' & !is.na(SciName), .(total.abnd = sum(count_individuals), total.sp.rich = uniqueN(SciName))] # 594 reptiles from 17 species
+
+alpha.div[, sort(unique(unit))]
+inland.sands <- alpha.div[unit == 'Inland Sands'] # subset the inland sands
+str(inland.sands)
+inland.sands[is.na(agriculture) | is.na(dunes)] # no missing variables
+
+inland.sands[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(campaign, year, site, agriculture, dunes)] # Always 3 surveys per site-agri-dunes
+
+# Dot plots
+Inner.sands.sp.rich.dotplot <- ggplot(data = inland.sands, aes(x = species.richness, y = site)) +
+  geom_point(aes(color = dunes, shape = agriculture)) +  geom_line(aes(group = site)) +
+  facet_grid(campaign ~ .) + labs(title = 'Reptile Species Richness in the Inner Sands', y = 'Site', x = 'Species Richness', color = 'Dune Type',
+                                  shape = 'Proximity to agriculture') + 
+  scale_color_manual(values = okabe) + scale_x_continuous(limits = c(0, inland.sands[, max(species.richness) + 1]),
+                                                          breaks = seq(0, inland.sands[, max(species.richness) + 1], by = 2)) +
+  theme_bw() + theme(legend.position = 'bottom',
+                     plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+Inner.sands.sp.rich.dotplot
+ggsave('Figures/Reptile species richness in the Inner sands - dotplot.png', plot = Inner.sands.sp.rich.dotplot)
+
+Inner.sands.abnd.dotplot <- ggplot(data = inland.sands, aes(x = total.abundance, y = site)) +
+  geom_point(aes(color = dunes, shape = agriculture)) +  geom_line(aes(group = site)) +
+  facet_grid(campaign ~ .) + labs(title = 'Reptile Total Abundance in the Inner Sands', y = 'Site', x = 'Total Abundance', color = 'Dune Type',
+                                  shape = 'Proximity to agriculture') + 
+  scale_color_manual(values = okabe) + scale_x_continuous(limits = c(0, inland.sands[, max(total.abundance) + 1]),
+                                                          breaks = seq(0, inland.sands[, max(total.abundance) + 1], by = 2)) +
+  theme_bw() + theme(legend.position = 'bottom',
+                     plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+Inner.sands.abnd.dotplot
+ggsave('Figures/Reptile Total Abundance in the Inner sands - dotplot.png', plot = Inner.sands.abnd.dotplot)
+
+```
+Next, species richness. Start with data visualization:
+
+```{r}
+# The relevant predictors are distance to settlement, dunes, and temporal trend
+# Plot species richness
+ggplot(data = inland.sands, aes(x = dunes, color = agriculture, y = species.richness)) + geom_boxplot() + 
+  geom_jitter(height = 0, width = 0.3) +  facet_wrap(. ~ year) + theme_bw() # 2021 seem worse than 2017-2019
+```
+Species richness model selection:
+```{r}
+# Full model, Poisson response
+inland.sands.sp.rich.model.full.Poisson <- glmmTMB(species.richness ~ agriculture * dunes + sin.dist.21.June + cos.dist.21.June + site,
+                                            family = 'poisson', data = inland.sands)
+summary(inland.sands.sp.rich.model.full.Poisson) # AIC = 296.8; BIC = 317.3. Only cosine seasonality is significant
+cat('PHI = ')
+deviance(inland.sands.sp.rich.model.full.Poisson)/df.residual(inland.sands.sp.rich.model.full.Poisson)
+drop1(inland.sands.sp.rich.model.full.Poisson) # Should omit sine distance to noon
+```
+PHI < 1, so we continue with Poisson. We can drop the interaction between agriculture and dunes:
+
+```{r}
+inland.sands.sp.rich.model1 <- glmmTMB(species.richness ~ agriculture + dunes + sin.dist.21.June + cos.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.sp.rich.model1) 
+drop1(inland.sands.sp.rich.model1) 
+```
+We can drop either agriculture or dune. Let's try dropping dunes:
+
+```{r}
+inland.sands.sp.rich.model2 <- glmmTMB(species.richness ~ agriculture + sin.dist.21.June + cos.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.sp.rich.model2) 
+drop1(inland.sands.sp.rich.model2) 
+```
+Now let's drop agriculture too:
+```{r}
+inland.sands.sp.rich.model3 <- glmmTMB(species.richness ~ sin.dist.21.June + cos.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.sp.rich.model3) 
+drop1(inland.sands.sp.rich.model3) 
+```
+We can drop sine seasonality:
+
+```{r}
+inland.sands.sp.rich.model4 <- glmmTMB(species.richness ~ cos.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.sp.rich.model4) 
+drop1(inland.sands.sp.rich.model4) 
+```
+We can drop also cosine seasonality and retain only site ID (because we insist on keeping it despite indications from AIC that we should drop it):
+
+```{r}
+inland.sands.sp.rich.model5 <- glmmTMB(species.richness ~ site, family = 'poisson', data = inland.sands)
+summary(inland.sands.sp.rich.model5) 
+drop1(inland.sands.sp.rich.model5) 
+```
+As we refuse to drop site identity, we cannot drop any more predictors. Let's proceed to model diagnostics:
+
+```{r}
+inland.sands.sp.rich.sim.res <- simulateResiduals(inland.sands.sp.rich.model5) # simulate the residuals using DHARMa package for model diagnostics
+plot(inland.sands.sp.rich.sim.res) # Dispersion test is significant
+
+testDispersion(inland.sands.sp.rich.sim.res, alternative = 'greater') # p = 1, suggesting under-dispersion
+testDispersion(inland.sands.sp.rich.sim.res, alternative = 'less', plot = F) # p < 2.2e-16 -> under-dispersion, small power
+
+plot(inland.sands.sp.rich.sim.res$fittedPredictedResponse, inland.sands.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nInland Sands species richness model 5')
+plot(fitted(inland.sands.sp.rich.model5), residuals(inland.sands.sp.rich.model5), main = 'Response scale residuals\nInland Sands species richness model 5')
+
+# Export these graphs:
+png('Analysis/Model diagnostics/Inland Sands species richness model 5 QQ Plot.png')
+plot(inland.sands.sp.rich.sim.res)
+dev.off()
+
+png('Analysis/Model diagnostics/Inland Sands species richness model fitted vs. scaled residuals.png')
+plot(inland.sands.sp.rich.sim.res$fittedPredictedResponse, inland.sands.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nInland Sands species richness model 5')
+dev.off()
+
+png('Analysis/Model diagnostics/Inland Sands species richness model 5 fitted vs. residuals.png')
+plot(fitted(inland.sands.sp.rich.model5), residuals(inland.sands.sp.rich.model5), main = 'Response scale residuals\nInland Sands species richness model 5')
+dev.off()
+```
+The main issue seem to be under-dispersion, which means lower statistical power.
+Model back up and documentation of the model selection process:
+```{r}
+file.remove('Analysis/Inner sands - species richness model selection.txt')
+for (model in c(ls()[grep('*inland.sands.sp.rich.model', ls())])){
+  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
+                 file = 'Analysis/Inner sands - species richness model selection.txt', append = T)
+}
+# load('Analysis/Inner sands - Species richness models.Rdata')
+save(list = ls()[grep('*inland.sands.sp.rich.model', ls())], file = 'Analysis/Inner sands - Species richness models.Rdata')
+capture.output(cat('The best fitting model for species richness in the inner sands is the null model.'), 
+               summary(inland.sands.sp.rich.model5), 
+               testDispersion(inland.sands.sp.rich.sim.res, alternative = 'greater', plot = F) ,# p = 1, suggesting under-dispersion
+               testDispersion(inland.sands.sp.rich.sim.res, alternative = 'less', plot = F), # p < 2.2e-16 -> under-dispersion, small power
+               file = 'Output/Inner sands species richness - best fitting model.txt', append = F)
+
+# Create a table comparing species richness models:
+for(model in ls()[grep('*inland.sands.sp.rich.model.', ls())]){
+  sp.rich.comparison <- rbind(sp.rich.comparison,
+                              data.table(unit = 'Inner sands', model = model,
+                                         no.of.preds = length(attr(get(model)$modelInfo$terms$cond$fixed, 'term.labels')),
+                                         AIC = AIC(get(model)), BIC = BIC(get(model)),
+                                         data = as.character(get(model)$call$data),
+                                         family = as.character(get(model)$call$family),
+                                         formula = as.character(get(model)$call$formula)))
+}
+sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% 'species.richness')] # remove redundant rows
+sp.rich.comparison <- unique(sp.rich.comparison)
+setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
+sp.rich.comparison[unit == 'Inner sands', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
+write_excel_csv(sp.rich.comparison, file = 'Analysis/Species richness models of reptiles - AIC comparison.csv')
+
+rm(list = setdiff(ls()[grep('*inland.sands.sp.rich.model', ls())], c('inland.sands.sp.rich.model5'))) # Clean up
+```
+Once again, the chosen model does not contain any predictors in the researcher hypotheses (temporal trend, dune type or distance to agriculture), so we do not explore its predictions. Next, let's move to total abundance in the inland sands. Let's start with data visualization:
+
+```{r}
+ggplot(data = inland.sands, aes(x = dunes, y = total.abundance, color = agriculture)) + geom_boxplot() + facet_grid(. ~ year)
+```
+2021 seems lower than 2017 and 2019, but not other differences are obvious visually. Let's fit the full Poisson model:
+
+```{r}
+inland.sands.total.abnd.model.full <- glmmTMB(total.abundance ~ year.count * agriculture + year.count * dunes + agriculture * dunes + sin.dist.21.June + cos.dist.21.June +
+                                      site, family = 'poisson', data = inland.sands)
+summary(inland.sands.total.abnd.model.full)
+cat('PHI = '); 
+deviance(inland.sands.total.abnd.model.full)/df.residual(inland.sands.total.abnd.model.full)
+drop1(inland.sands.total.abnd.model.full)
+```
+
+PHI < 1, so we proceed with Poisson models. We can drop the interaction between trend and dune type:
+
+```{r}
+inland.sands.total.abnd.model1 <- glmmTMB(total.abundance ~ year.count * agriculture + dunes + agriculture * dunes + sin.dist.21.June + cos.dist.21.June +
+                                      site, family = 'poisson', data = inland.sands)
+summary(inland.sands.total.abnd.model1)
+drop1(inland.sands.total.abnd.model1)
+```
+We can also drop the interaction between trend and distance to agriculture:
+
+```{r}
+inland.sands.total.abnd.model2 <- glmmTMB(total.abundance ~ year.count + agriculture * dunes + sin.dist.21.June + cos.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.total.abnd.model2) 
+drop1(inland.sands.total.abnd.model2)
+```
+We can drop the last interaction standing, that between dune type and distance to agriculture:
+
+```{r}
+inland.sands.total.abnd.model3 <- glmmTMB(total.abundance ~ year.count + agriculture + dunes + sin.dist.21.June + cos.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.total.abnd.model3) 
+drop1(inland.sands.total.abnd.model3)
+```
+
+We can drop the dune type altogether:
+```{r}
+inland.sands.total.abnd.model4 <- glmmTMB(total.abundance ~ year.count + agriculture + sin.dist.21.June + cos.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.total.abnd.model4) 
+drop1(inland.sands.total.abnd.model4)
+```
+We can drop the distance to agriculture as well:
+
+```{r}
+inland.sands.total.abnd.model5 <- glmmTMB(total.abundance ~ year.count + sin.dist.21.June + cos.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.total.abnd.model5) 
+drop1(inland.sands.total.abnd.model5)
+```
+We can drop cosine seasonality too as delta AIC < 2:
+
+```{r}
+inland.sands.total.abnd.model6 <- glmmTMB(total.abundance ~ year.count + sin.dist.21.June + site, family = 'poisson', data = inland.sands)
+summary(inland.sands.total.abnd.model6) 
+drop1(inland.sands.total.abnd.model6)
+```
+No more predictors to drop. Proceed to model diagnostics:
+```{r}
+inland.sands.abnd.sim.res <- simulateResiduals(inland.sands.total.abnd.model6) # simulate the residuals using DHARMa package for model diagnostics
+plot(inland.sands.abnd.sim.res) 
+testQuantiles(inland.sands.abnd.sim.res) 
+plotResiduals(inland.sands.abnd.sim.res, form = inland.sands$year.count) #
+plotResiduals(inland.sands.abnd.sim.res, form = inland.sands$sin.dist.21.June) #
+
+testDispersion(inland.sands.abnd.sim.res, alternative = 'greater') # p = 1, suggesting under-dispersion
+testDispersion(inland.sands.abnd.sim.res, alternative = 'less', plot = F) # p < 2.2e-16 -> under-dispersion, small power
+
+plot(inland.sands.abnd.sim.res$fittedPredictedResponse, inland.sands.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nInland Sands abundance model 5')
+plot(fitted(inland.sands.total.abnd.model6), residuals(inland.sands.total.abnd.model6), main = 'Response scale residuals\nInland Sands abundance model 5')
+
+# Export these graphs:
+png('Analysis/Model diagnostics/Inland Sands abundance model 5 QQ Plot.png')
+plot(inland.sands.abnd.sim.res)
+dev.off()
+
+png('Analysis/Model diagnostics/Inland Sands abundance model fitted vs. scaled residuals.png')
+plot(inland.sands.abnd.sim.res$fittedPredictedResponse, inland.sands.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nInland Sands abundance model 5')
+dev.off()
+
+png('Analysis/Model diagnostics/Inland Sands abundance model 5 fitted vs. residuals.png')
+plot(fitted(inland.sands.total.abnd.model6), residuals(inland.sands.total.abnd.model6), main = 'Response scale residuals\nInland Sands abundance model 5')
+dev.off()
+```
+The quantile test is significant, which means that there is some non-linearity in the data that is not captured by the model (according to this answer: https://stats.stackexchange.com/questions/548478/how-to-interpret-meaning-of-residual-vs-predicted-quantile-plots-in-dharma)
+```{r}
+# The chosen model is inland.sands.total.abnd.model6 - temporal trend and seasonal pattern
+summary(inland.sands.total.abnd.model6)
+hist(resid(inland.sands.total.abnd.model6)) # mostly from -4 to +4
+quantile(resid(inland.sands.total.abnd.model6)) # inter-quartile range: -1.7 to 0.9; median = -0.3
+
+file.remove('Analysis/inland.sandsal Dunes - total abundance model selection.txt')
+for (model in c(ls()[grep('*inland.sands.total.abnd.model', ls())])){
+  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
+                                                   file = 'Analysis/inland sands - total abundance model selection.txt', append = T)
+}
+# load('Analysis/inland sands - total abundance models.Rdata')
+save(list = ls()[grep('*inland.sands.total.abnd.model', ls())], file = 'Analysis/inland sands - total abundance models.Rdata')
+capture.output(cat('The best fitting model for total abundance in the inland.sands is inland.sands.total.abnd.model6.'),
+                   summary(inland.sands.total.abnd.model6),
+               cat('\n----\nTest for quantile deviation for the trend:\n'),
+               testQuantiles(inland.sands.abnd.sim.res, predictor = inland.sands$year.count, plot = F), #
+               cat('\n----\nTest for quantile deviation for the sine seasonality:\n'),
+               testQuantiles(inland.sands.abnd.sim.res, predictor = inland.sands$sin.dist.21.June, plot = F), #
+               file = 'Output/inland.sands total abundance - best fitting model.txt', append = F)
+
+# Create a table comparing total abundance models:
+for(model in setdiff(ls()[grep('*inland.sands.total.abnd.model.', ls())], "inland.sands.total.abnd.model8.effect.plot")){
+  total.abnd.comparison <- rbind(total.abnd.comparison,
+                                 data.table(unit = 'Inland Sands', model = model,
+                                            no.of.preds = length(attr(get(model)$modelInfo$terms$cond$fixed, 'term.labels')),
+                                            AIC = AIC(get(model)), BIC = BIC(get(model)),
+                                            data = as.character(get(model)$call$data),
+                                            family = as.character(get(model)$call$family),
+                                            formula = as.character(get(model)$call$formula)))
+}
+total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %like% 'total.abundance')] # remove redundant rows
+total.abnd.comparison <- unique(total.abnd.comparison)
+setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
+total.abnd.comparison[unit == 'Inland Sands', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
+write_excel_csv(total.abnd.comparison, file = 'Analysis/Reptiles total abundance models of reptiles - AIC comparison.csv')
+
+rm(list = setdiff(ls()[grep('*inland.sands.total.abnd.model', ls())], c('inland.sands.total.abnd.model6'))) # Clean up
+```
+This time, the chosen model includes the trend, so let's explore its predictions:
+
+```{r}
+summary(inland.sands.total.abnd.model6)
+# Predict by the mean observed values
+reptiles[, sort(unique(unit))]
+quantile(reptiles[unit == 'Inland Sands', .(day.of.year = unique(yday(date))), by = survey_ID][, day.of.year])
+# Dates vary from 171 (June 20th) to 232 (August 20th) with a median of 201 (July 20th)
+
+## Calculate the mean radian angle of the date and time of sampling and use this for model fit to predict trends
+
+# Create a table to be filled by a loop with predictor values to be used for predictions
+reptiles[unit %like% 'Inland', .(no.of.surveys = uniqueN(survey_ID)), keyby = yday(Date)] # day 202 is the most common date
+yday(as.Date('2021-07-20')) # 21 July is day 201 in non-leap years
+reptiles[unit %like% 'Inland', .(no.of.surveys = uniqueN(survey_ID)), keyby = month(Date)] # July is the most common month
+
+# Plot the model seasonal pattern
+inland.sands.total.abnd.seas.pred <- data.table(expand.grid(Date = seq.Date(as.Date('2017-01-01'),
+                                                                            as.Date('2021-12-31'), by = 1), site = 'Shunra East'))
+inland.sands.total.abnd.seas.pred[, ':=' (year = year(Date),
+                                          dist.21.June = ifelse(yday(Date) < 354,
+                                                               Date - as.Date(paste(year(Date), 6, 21, sep = '-')),
+                                                               Date - as.Date(paste(year(Date) + 1, 6, 21, sep = '-'))))]
+inland.sands.total.abnd.seas.pred <- inland.sands.total.abnd.seas.pred[year %in% c(2017, 2019, 2021)]
+inland.sands.total.abnd.seas.pred[, ':=' (dist.21.June.radians = dist.21.June * pi / 182.5, # Convert to radians (multiply by pi and divide by half the number of days in a year), one harmonic
+                                         dist.21.June.radians.2h = 2*dist.21.June * pi / 182.5)] 
+setorder(inland.sands.total.abnd.seas.pred, Date, dist.21.June.radians)
+inland.sands.total.abnd.seas.pred[, ':=' (year.count = year - min(year))]
+inland.sands.total.abnd.seas.pred[, ':=' (sin.dist.21.June = sin(dist.21.June.radians), cos.dist.21.June = cos(dist.21.June.radians))] # Calculate the sin and cosine of the distance from June 21st
+inland.sands.total.abnd.seas.pred
+plot(inland.sands.total.abnd.seas.pred[year == 2017, Date], inland.sands.total.abnd.seas.pred[year == 2017,sin.dist.21.June],
+     main = 'Sine of distance to June 21st') # sanity check - should be a wave
+plot(inland.sands.total.abnd.seas.pred[year == 2017, Date], inland.sands.total.abnd.seas.pred[year == 2017,cos.dist.21.June],
+     main = 'Cosine of distance to June 21st') # sanity check - should be a wave
+
+bla <- predict(inland.sands.total.abnd.model6, newdata = inland.sands.total.abnd.seas.pred, type = 'response', se.fit = T)
+inland.sands.total.abnd.seas.pred[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
+# inland.sands.total.abnd.seas.pred[, .(year, predicted.abnd, predicted.abnd.se)]
+inland.sands.total.abnd.seas.pred
+
+# plot the seasonal predictions
+ggplot(data = inland.sands.total.abnd.seas.pred, aes(x = as.Date(paste(2017, month(Date), mday(Date), sep = '-')), y = predicted.abnd)) + geom_line() +
+  geom_point(data = reptiles[unit %like% 'Inland', .(total.abnd = sum(count_individuals, na.rm = T)),
+                             keyby = .(survey_ID, year(Date), as.Date(paste(2017, month(Date), mday(Date), sep = '-')))],
+             aes(x = as.Date, y = total.abnd)) + labs(x = 'Date', y = 'Abundance', title = 'Inland Sands Reptiles',
+                                                      subtitle = 'Predicted and observed abundance') +
+  facet_wrap(. ~ year) # The predictions are much lower than the observations
+ggsave('Analysis/inland.sands.total.abnd.model6 seasonal Predictions and observations in reptile total abundance in Inland Sands.png')
+
+# Create a data.table for predictions
+inland.sands.total.abnd.fit.data <- data.table(expand.grid(year = inland.sands[, sort(unique(year))], site = 'Shunra East'))
+inland.sands.total.abnd.fit.data[, Date := as.Date(paste(year, '07', '20', sep = '-'))]
+inland.sands.total.abnd.fit.data[, ':=' (dist.21.June = ifelse(yday(Date) < 354,
+                                                               Date - as.Date(paste(year(Date), 6, 21, sep = '-')),
+                                                               Date - as.Date(paste(year(Date) + 1, 6, 21, sep = '-'))))]
+inland.sands.total.abnd.fit.data[, ':=' (dist.21.June.radians = dist.21.June * pi / 182.5, # Convert to radians (multiply by pi and divide by half the number of days in a year), one harmonic
+                                         dist.21.June.radians.2h = 2*dist.21.June * pi / 182.5)]
+setorder(inland.sands.total.abnd.fit.data, year, dist.21.June.radians)
+inland.sands.total.abnd.fit.data # seems ok
+inland.sands.total.abnd.fit.data[, ':=' (year.count = year - min(year))]
+inland.sands.total.abnd.fit.data[, ':=' (sin.dist.21.June = sin(dist.21.June.radians), cos.dist.21.June = cos(dist.21.June.radians))] # Calculate the sin and cosine of the distance from June 21st
+inland.sands.total.abnd.fit.data
+
+bla <- predict(inland.sands.total.abnd.model6, newdata = inland.sands.total.abnd.fit.data, type = 'response', se.fit = T)
+inland.sands.total.abnd.fit.data[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
+inland.sands.total.abnd.fit.data[, .(year, predicted.abnd, predicted.abnd.se)] # From 14.0 in 2017 to 6.4 individuals in 2021 
+1 - 6.4 / 14 # decline of 54.3%
+inland.sands.total.abnd.fit.data # Now the predictions finally make sense!
+write_excel_csv(inland.sands.total.abnd.fit.data, 'Output/Reptile predicted total abundance in the Inland Sands model10.csv')
+
+inland.sands.total.abnd.pred <- melt(unique(inland.sands.total.abnd.fit.data[, .(year, predicted.abnd, predicted.abnd.se)]),
+                                     id.vars = c('year'), variable.name = 'quality', value.name = 'predicted.abnd')
+inland.sands.total.abnd.pred[year == min(year), ':=' (first.yr.abnd = predicted.abnd)] # find the prediction of the first year
+setnafill(inland.sands.total.abnd.pred, 'locf', cols = 'first.yr.abnd') # Fill in missing predictions according to the last observation carried forward rule
+inland.sands.total.abnd.pred # seems ok
+inland.sands.total.abnd.pred[, ':=' (delta.1st.yr = predicted.abnd - first.yr.abnd,
+                                     pct.diff.1st.year = predicted.abnd / first.yr.abnd -1)]
+inland.sands.total.abnd.pred
+write_excel_csv(inland.sands.total.abnd.pred, file = 'Output/Inner sands - predictions of total reptile abundance.csv')
+
+# Effect plot of annual trend
+inland.sands.total.abnd.effect.plot <- effect_plot(model = inland.sands.total.abnd.model6, pred = year.count, data = inland.sands,  colors = "Qual1",
+                                            line.colors = 'black', point.alpha = 0.25, interval = T, plot.points = F, partial.residuals = F, 
+                                            jitter = c(0.1,0), int.type = 'confidence', legend.main = strReverse('בית גידול')) + 
+  theme_minimal() + labs(x = NULL, y = strReverse('שפע')) +
+  scale_x_continuous(breaks = inland.sands[, sort(unique(year.count))], labels = inland.sands[, .(year = unique(year)), keyby = year.count][, year]) +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = 'bottom',
+        text = element_text(family = fontname, size = fontsize), axis.text = element_text(size = fontsize - 1),
+        panel.grid.major.y = element_line(color = 'grey90', linetype = 5, linewidth = 1),
+        panel.grid.minor = element_blank(), panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) 
+inland.sands.total.abnd.effect.plot
+
+Cairo::Cairo(file = 'Figures/Inland sands total abundance model10 effect plot - temporal trend.pdf', width = pdf_width, height = pdf_width*pdf_aspect_ratio,
+             type = "PDF", units = "mm")
+print(inland.sands.total.abnd.effect.plot)
+dev.off()
+
+```
+## Loess - STOPPED HERE 13.2.2024
+
+Some data exploration:
+
+```{r}
+reptiles[unit %like% 'Loess' & !is.na(SciName), .(total.abnd = sum(count_individuals), total.sp.rich = uniqueN(SciName))]
+
+## Loess species richness----
+loess <- alpha.div[unit == 'Loess Covered Areas in the Northern Negev']
+loess[campaign == 'T0', ':=' (year = 2014, year.fct = as.factor(2014))]
+
+str(loess)
+loess[is.na(habitat)] # no missing variables
+loess[, sort(unique(year)), keyby = campaign] # 2014-2020 every 2 years
+loess[, .(no.of.sites = uniqueN(site)), keyby = .(campaign, year)]
+loess[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(campaign, year, site)]
+loess[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(campaign, year, site, habitat)]
+
+# The relevant predictors are habitat and temporal trend
+
+# Dot plots
+loess.sp.rich.dotplot <- ggplot(data = loess, aes(x = species.richness, y = site)) +
+  geom_point(aes(color = habitat)) +  geom_line(aes(group = site)) +
+  facet_grid(campaign ~ .) + labs(title = 'Reptile Species Richness in the Loess', y = 'Site', x = 'Species Richness', color = 'Habitat') + 
+  scale_color_manual(values = okabe) + scale_x_continuous(limits = c(0, loess[, max(species.richness)]),
+                                                          breaks = seq(0, loess[, max(species.richness)], by = 2)) +
+  theme_bw() + theme(legend.position = 'bottom',
+                     plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+loess.sp.rich.dotplot
+ggsave('Figures/Reptile species richness in the Loess - dotplot.png', plot = loess.sp.rich.dotplot)
+
+loess.abnd.dotplot <- ggplot(data = loess, aes(x = total.abundance, y = site)) +
+  geom_point(aes(color = habitat)) +  geom_line(aes(group = site)) +
+  facet_grid(campaign ~ .) + labs(title = 'Reptile Total Abundance in the Loess', y = 'Site', x = 'Total Abundance', color = 'Habitat') + 
+  scale_color_manual(values = okabe) + scale_x_continuous(limits = c(0, loess[, max(total.abundance) + 1]),
+                                                          breaks = seq(0, loess[, max(total.abundance) + 1], by = 2)) +
+  theme_bw() + theme(legend.position = 'bottom',
+                     plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+loess.abnd.dotplot
+ggsave('Figures/Reptile Total Abundance in the Loess - dotplot.png', plot = loess.abnd.dotplot)
+```
+Next, study species richness in the loess. Let's start with data visualization:
+```{r}
+# Plot species richness
+ggplot(data = loess, aes(x = habitat, color = habitat, y = species.richness)) + geom_boxplot() + 
+  geom_jitter(height = 0, width = 0.3) +  facet_wrap(. ~ year) + theme_bw()
+```
+Habitat and annual differences seem minor
+
+Next, model selection, starting from the full model with Poisson response:
+
+```{r}
+loess.sp.rich.model.full.Poisson <- glmmTMB(species.richness ~ year.count * habitat + sin.dist.21.June + cos.dist.21.June +
+                                sin.dist.noon + cos.dist.noon + (1|site), family = 'poisson', data = loess)
+summary(loess.sp.rich.model.full.Poisson) # AIC = 314.3 BIC = 344.2
+cat('PHI = '); deviance(loess.sp.rich.model.full.Poisson)/df.residual(loess.sp.rich.model.full.Poisson)
+drop1(loess.sp.rich.model.full.Poisson) # Can drop the interaction
+```
+Since PHI < 1, we proceed with Poisson models. We can drop the interaction between trend and habitat.
+
+```{r}
+loess.sp.rich.model1 <- glmmTMB(species.richness ~ year.count + habitat + sin.dist.21.June + cos.dist.21.June +
+                                sin.dist.noon + cos.dist.noon + (1|site), family = 'poisson', data = loess)
+summary(loess.sp.rich.model1) 
+drop1(loess.sp.rich.model1)
+```
+We can drop the habitat altogether:
+
+```{r}
+loess.sp.rich.model2 <- glmmTMB(species.richness ~ year.count + sin.dist.21.June + cos.dist.21.June +
+                                sin.dist.noon + cos.dist.noon + (1|site), family = 'poisson', data = loess)
+summary(loess.sp.rich.model2) 
+drop1(loess.sp.rich.model2)
+```
+We can also drop the trend:
+
+```{r}
+loess.sp.rich.model3 <- glmmTMB(species.richness ~ sin.dist.21.June + cos.dist.21.June +
+                                sin.dist.noon + cos.dist.noon + (1|site), family = 'poisson', data = loess)
+summary(loess.sp.rich.model3) 
+drop1(loess.sp.rich.model3)
+```
+We can drop sine seasonality since delta AIC < 2:
+
+```{r}
+loess.sp.rich.model4 <- glmmTMB(species.richness ~ cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1|site), family = 'poisson', data = loess)
+summary(loess.sp.rich.model4) 
+drop1(loess.sp.rich.model4)
+```
+No more predictors to drop. Let's proceed to model diagnostics:
+```{r}
+# The chosen model is loess.sp.rich.model4 (time of day and season)
+loess.sp.rich.sim.res <- simulateResiduals(loess.sp.rich.model4) # simulate the residuals using DHARMa package for model diagnostics
+plot(loess.sp.rich.sim.res) # The QQ plot is not good ; dispersion is significant; residual quantile test is significant
+plotResiduals(loess.sp.rich.sim.res, form = loess$cos.dist.21.June) # Quantile deviations detected for cosine seasonality
+plotResiduals(loess.sp.rich.sim.res, form = loess$cos.dist.noon) # Quantile deviations detected for cosine diel pattern
+plotResiduals(loess.sp.rich.sim.res, form = loess$sin.dist.noon)# Quantile deviations detected for sine diel pattern
+testDispersion(loess.sp.rich.sim.res, alternative = 'greater') # p-value = 1, no over-dispersion
+testDispersion(loess.sp.rich.sim.res, alternative = 'less', plot = F) # p < 2.2e-16 -> under-dispersion
+
+testDispersion(loess.sp.rich.sim.res, alternative = 'greater') # p = 1, suggesting under-dispersion
+testDispersion(loess.sp.rich.sim.res, alternative = 'less', plot = F) # p < 2.2e-16 -> under-dispersion, small power
+
+plot(loess.sp.rich.sim.res$fittedPredictedResponse, loess.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nLoess species richness model 4')
+plot(fitted(loess.sp.rich.model4), residuals(loess.sp.rich.model4), main = 'Response scale residuals\nLoess species richness model 4')
+
+# Export these graphs:
+png('Analysis/Model diagnostics/Loess species richness model 4 QQ Plot.png')
+plot(loess.sp.rich.sim.res)
+dev.off()
+
+png('Analysis/Model diagnostics/Loess species richness model 4 fitted vs. scaled residuals.png')
+plot(loess.sp.rich.sim.res$fittedPredictedResponse, loess.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nLoess species richness model 4')
+dev.off()
+
+png('Analysis/Model diagnostics/Loess species richness model 4 fitted vs. residuals.png')
+plot(fitted(loess.sp.rich.model4), residuals(loess.sp.rich.model4), main = 'Response scale residuals\nLoess species richness model 4')
+dev.off()
+```
+We can see clear indications of under-dispersion because the results of the testDispersion functions with the alternative of lower dispersion are highly significant. This means we have lower statistical power (increased type II error rate). In addition we see that there are some over-predictions for the seasonal and diel predictors. However, as none of the research hypotheses predictors were included in the final model, we will not try to predict species richness in the Loess anyway.
+Back up all the Loess species richness models and document the model selection process:
+```{r}
+file.remove('Analysis/Loess - species richness model selection.txt')
+for (model in c(ls()[grep('*loess.sp.rich.model', ls())])){
+  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
+                 file = 'Analysis/Loess - species richness model selection.txt', append = T)
+}
+# load('Analysis/Inner sands - Species richness models.Rdata')
+save(list = ls()[grep('*loess.sp.rich.model', ls())], file = 'Analysis/Inner sands - Species richness models.Rdata')
+capture.output(cat('The best fitting model for species richness in the loess is loess.sp.rich.model4.'), 
+               summary(loess.sp.rich.model4), file = 'Output/Loess species richness - best fitting model.txt', append = F)
+
+# Create a table comparing total abundance models:
+for(model in ls()[grep('*loess.sp.rich.model.', ls())]){
+  sp.rich.comparison <- rbind(sp.rich.comparison,
+                              data.table(unit = 'Loess', model = model,
+                                         no.of.preds = length(attr(get(model)$modelInfo$terms$cond$fixed, 'term.labels')),
+                                         AIC = AIC(get(model)), BIC = BIC(get(model)),
+                                         data = as.character(get(model)$call$data),
+                                         family = as.character(get(model)$call$family),
+                                         formula = as.character(get(model)$call$formula)))
+}
+sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% 'species.richness')] # remove redundant rows
+sp.rich.comparison <- unique(sp.rich.comparison)
+setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
+sp.rich.comparison[unit == 'Loess', .(model, family, no.of.preds, AIC, BIC)] # View the table
+write_excel_csv(sp.rich.comparison, file = 'Analysis/Species richness models of reptiles - AIC comparison.csv')
+
+rm(list = setdiff(ls()[grep('*loess.sp.rich.model', ls())], c('loess.sp.rich.model4'))) # Clean up
+```
+
+Again, we find no researcher hypotheses in the chosen model, so we do not explore its predictions. Move on to total reptile abundance. Let's start with data visualization:
+```{r}
+ggplot(data = loess, aes(x = habitat, y = total.abundance, color = habitat)) + geom_boxplot() + facet_wrap(. ~ year)
+```
+2018-2020 seem lower than 2014-2016, but not in KKL (JNF) plantations. Let's examine the histogram of the total abundance of all Loess surveys:
+```{r}
+loess[, .(no.of.surveys = uniqueN(survey_ID)), keyby = total.abundance]
+ggplot(loess[, .(no.of.surveys = uniqueN(survey_ID)), keyby = total.abundance], aes(x = total.abundance, y = no.of.surveys)) + geom_col()
+```
+The distribution is obviously skewed, with many low (0-2) values.
+Let's proceed to model selection:
+
+```{r}
+# Full model, Poisson response
+loess.abnd.model.full.Poisson <- glmmTMB(total.abundance ~ year.count * habitat + sin.dist.21.June + cos.dist.21.June +
+                                   sin.dist.noon + cos.dist.noon + (1|site), family = 'poisson', data = loess)
+summary(loess.abnd.model.full.Poisson) # AIC = 440.2 BIC = 470.1. Trend-habitat interactions are significant
+cat('PHI = '); deviance(loess.abnd.model.full.Poisson)/df.residual(loess.abnd.model.full.Poisson)
+drop1(loess.abnd.model.full.Poisson)
+```
+This time PHI > 1, so we should try a negative binomial model as well.
+
+```{r}
+# Full model, Negative Binomial response
+loess.abnd.model.full.NB <- glmmTMB(total.abundance ~ year.count * habitat + sin.dist.21.June + cos.dist.21.June +
+                                   sin.dist.noon + cos.dist.noon + (1|site), family = 'nbinom2', data = loess)
+summary(loess.abnd.model.full.NB)
+drop1(loess.abnd.model.full.NB)
+```
+
+Apparently, we cannot drop any predictors to decrease AIC, but we will try to do so anyway. Let's start by dropping the interaction:
+```{r}
+loess.abnd.model1 <- glmmTMB(total.abundance ~ year.count + habitat + sin.dist.21.June + cos.dist.21.June +
+                                   sin.dist.noon + cos.dist.noon + (1|site), family = 'nbinom2', data = loess)
+summary(loess.abnd.model1)
+drop1(loess.abnd.model1)
+```
+Proceed to dropping the habitat:
+```{r}
+loess.abnd.model2 <- glmmTMB(total.abundance ~ year.count + sin.dist.21.June + cos.dist.21.June +
+                                   sin.dist.noon + cos.dist.noon + (1|site), family = 'nbinom2', data = loess)
+summary(loess.abnd.model2)
+drop1(loess.abnd.model2)
+```
+We can drop cosine diel pattern:
+
+```{r}
+loess.abnd.model3 <- glmmTMB(total.abundance ~ year.count + sin.dist.21.June + cos.dist.21.June +
+                                   sin.dist.noon + (1|site), family = 'nbinom2', data = loess)
+summary(loess.abnd.model3)
+drop1(loess.abnd.model3)
+```
+No more predictors to drop, and the full model is still preferable according to AIC. At least we tried! Let's proceed to model diagnostics:
+```{r}
+# The chosen model is the full negative binomial model....
+summary(loess.abnd.model.full.NB)
+loess.abnd.sim.res <- simulateResiduals(loess.abnd.model.full.NB)
+plot(loess.abnd.sim.res) # No problems detected in the QQ plot
+
+plot(loess.abnd.sim.res$fittedPredictedResponse, loess.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nLoess total abundance model 4')
+plot(fitted(loess.abnd.model.full.NB), residuals(loess.abnd.model.full.NB), main = 'Response scale residuals\nLoess total abundance model 4')
+
+# Export these graphs:
+png('Analysis/Model diagnostics/Loess total abundance model 4 QQ Plot.png')
+plot(loess.abnd.sim.res)
+dev.off()
+
+png('Analysis/Model diagnostics/Loess total abundance model 4 fitted vs. scaled residuals.png')
+plot(loess.abnd.sim.res$fittedPredictedResponse, loess.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nLoess total abundance model 4')
+dev.off()
+
+png('Analysis/Model diagnostics/Loess total abundance model 4 fitted vs. residuals.png')
+plot(fitted(loess.abnd.model.full.NB), residuals(loess.abnd.model.full.NB), main = 'Response scale residuals\nLoess total abundance model 4')
+dev.off()
+```
+Back up and document all the Loess total abundance models:
+```{r}
+file.remove('Analysis/Loess - total abundance model selection.txt')
+for (model in c(ls()[grep('*loess.sp.rich.model', ls())])){
+  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
+                 file = 'Analysis/Loess - total abundance model selection.txt', append = T)
+}
+# load('Analysis/Inner sands - total abundance models.Rdata')
+save(list = ls()[grep('*loess.abnd.model', ls())], file = 'Analysis/Loess - total abundance models.Rdata')
+capture.output(cat('The best fitting model for total abundance in the loess is loess.abnd.model.full.NB.'), 
+               summary(loess.abnd.model.full.NB), file = 'Output/Loess total abundance - best fitting model.txt', append = F)
+
+# Create a table comparing total abundance models:
+for(model in ls()[grep('*loess.abnd.model.', ls())]){
+  total.abnd.comparison <- rbind(total.abnd.comparison,
+                              data.table(unit = 'Loess', model = model,
+                                         no.of.preds = length(attr(get(model)$modelInfo$terms$cond$fixed, 'term.labels')),
+                                         AIC = AIC(get(model)), BIC = BIC(get(model)),
+                                         data = as.character(get(model)$call$data),
+                                         family = as.character(get(model)$call$family),
+                                         formula = as.character(get(model)$call$formula)))
+}
+total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %like% 'total.abundance')] # remove redundant rows
+total.abnd.comparison <- unique(total.abnd.comparison)
+setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
+total.abnd.comparison[unit == 'Loess', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
+write_excel_csv(total.abnd.comparison, file = 'Analysis/Total abundance models of reptiles - AIC comparison.csv')
+
+rm(list = setdiff(ls()[grep('*loess.abnd.model', ls())], c('loess.abnd.model.full.NB'))) # Clean up
+```
+This time we have surprisingly accepted the full model, so let's explore its predictions:
+
+```{r}
+# Loess - predict reptile total abundance----
+summary(loess.abnd.model.full.NB)
+
+# Predict by the mean observed values of date and time of day
+loess[, sort(unique(unit))]
+
+# Create a table to be filled by a loop with predictor values to be used for predictions
+loess[, sort(unique(year))] # 2014-2020
+
+# Plot the model's diel pattern
+loess.total.abnd.diel.pred <- data.table(expand.grid(Date = as.Date(c('2014-07-20', '2016-07-20', '2018-07-20', '2020-07-20')),
+                                                            site = NA, habitat = loess[, unique(habitat)],
+                                                            ITime = seq(as.ITime('00:00'), as.ITime('23:30'), by = 1800)))
+loess.total.abnd.diel.pred[, ':=' (Date.time = as.POSIXct(paste(Date, ITime, tz = 'Asia/Jerusalem')))]
+loess.total.abnd.diel.pred[, .(Date,  ITime, Date.time)] # seems ok
+loess.total.abnd.diel.pred[, ':=' (dist.21.June = ifelse(yday(Date) < 354,
+                                                                Date - as.Date(paste(year(Date), 6, 21, sep = '-')),
+                                                                Date - as.Date(paste(year(Date) + 1, 6, 21, sep = '-'))),
+                                          dist.noon = ifelse(as.ITime(ITime) < as.ITime('12:00'), # If the starting hour is before noon...
+                                                             Date.time %--% as.POSIXct(paste(Date, '12:00:00'), tz = 'Asia/Jerusalem'), # ...then take the distance from today's noon
+                                                             Date.time %--% as.POSIXct(paste(Date , '12:00:00'), tz = 'Asia/Jerusalem')))] # else, take the distance from tomorrow's noon
+
+loess.total.abnd.diel.pred[, ':=' (year = year(Date),
+                                          dist.21.June.radians = dist.21.June * pi / 182.5, # Convert to radians (multiply by pi and divide by half the number of days in a year), one harmonic
+                                          dist.21.June.radians.2h = 2*dist.21.June * pi / 182.5,
+                                          dist.noon.radians = dist.noon * pi/(12*60*60))] # convert to radians (multiply by pi and divide by half the number of seconds in a day), one harmonic 
+setorder(loess.total.abnd.diel.pred, Date, dist.21.June.radians, dist.noon.radians)
+# View(loess.total.abnd.diel.pred) # seems ok
+loess.total.abnd.diel.pred[, ':=' (year.count = year - min(year),
+                                          sin.dist.21.June = sin(dist.21.June.radians), cos.dist.21.June = cos(dist.21.June.radians),
+                                          sin.dist.noon = sin(dist.noon.radians), cos.dist.noon = cos(dist.noon.radians))] # Calculate the sin and cosine of the distance from June 21st
+loess.total.abnd.diel.pred
+plot(loess.total.abnd.diel.pred[year == 2014, ITime], loess.total.abnd.diel.pred[year == 2014,sin.dist.noon],
+     main = 'Sine of distance to noon') # sanity check - should be a wave
+plot(loess.total.abnd.diel.pred[year == 2014, ITime], loess.total.abnd.diel.pred[year == 2014, cos.dist.noon],
+     main = 'Cosine of distance to noon') # sanity check - should be a wave
+
+bla <- predict(loess.abnd.model.full.NB, newdata = loess.total.abnd.diel.pred, type = 'response', se.fit = T)
+loess.total.abnd.diel.pred[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
+# loess.total.abnd.diel.pred[, .(year, predicted.abnd, predicted.abnd.se)] # From 12.1 in 2017 to 5.7 individuals in 2021 in both habitats
+loess.total.abnd.diel.pred
+# plot the diel predictions
+ggplot(data = loess.total.abnd.diel.pred, aes(x = as.POSIXct(ITime), y = predicted.abnd, color = habitat)) + geom_line()  +
+  geom_point(data = reptiles[unit %like% 'Loess', .(total.abnd = sum(count_individuals, na.rm = T)),
+                             keyby = .(habitat, survey_ID, year(Date), ITime, as.POSIXct(paste(paste(2017, month(Date), mday(Date), sep = '-'), ITime),
+                                                                                tz = 'Asia/Jerusalem'))],
+             aes(x = as.POSIXct(ITime), y = total.abnd, color = habitat)) + labs(x = 'Time', y = 'Abundance', title = 'Loess Reptiles',
+                                                                subtitle = 'Predicted abundance for July 20th\nObserved abundance for all actual survey dates') + theme_bw() +
+  facet_wrap(. ~ year) + theme(axis.text = element_text(size = 8)) +
+  scale_x_datetime(date_labels = '%H:%M', date_breaks = '3 hours')
+ggsave('Analysis/loess.total.abnd.model3 diel Predictions and observations in reptile total abundance.png', scale = 1.25)
+```
+The predictions are more or less in line the observations; peak time is around 10:30-11:00. Let's proceed to predicting the trend, for a fixed calendar date (July 20th) and a fixed time of day (10:30 a.m.):
+```{r}
+summary(loess.abnd.model.full.NB)
+loess.total.abnd.fit.data <- data.table(expand.grid(Date = as.Date(c('2014-07-20', '2016-07-20', '2018-07-20', '2020-07-20')),
+                                                    point_name = NA, site = NA, habitat = loess[, unique(habitat)],
+                                                    ITime = as.ITime('10:30')))
+loess.total.abnd.fit.data[, ':=' (Date.time = as.POSIXct(paste(Date, ITime, tz = 'Asia/Jerusalem')),
+                                  year = year(Date))]
+loess.total.abnd.fit.data[, .(Date,  ITime, Date.time)] # seems ok
+loess.total.abnd.fit.data[, ':=' (dist.21.June = ifelse(yday(Date) < 354,
+                                                         Date - as.Date(paste(year(Date), 6, 21, sep = '-')),
+                                                         Date - as.Date(paste(year(Date) + 1, 6, 21, sep = '-'))),
+                                   dist.noon = ifelse(as.ITime(ITime) < as.ITime('12:00'), # If the starting hour is before noon...
+                                                      Date.time %--% as.POSIXct(paste(Date, '12:00:00'), tz = 'Asia/Jerusalem'), # ...then take the distance from today's noon
+                                                      Date.time %--% as.POSIXct(paste(Date , '12:00:00'), tz = 'Asia/Jerusalem')))] # else, take the distance from tomorrow's noon
+loess.total.abnd.fit.data[, ':=' (year = year(Date),
+                                   dist.21.June.radians = dist.21.June * pi / 182.5, # Convert to radians (multiply by pi and divide by half the number of days in a year), one harmonic
+                                   dist.21.June.radians.2h = 2*dist.21.June * pi / 182.5,
+                                   dist.noon.radians = dist.noon * pi/(12*60*60))] # convert to radians (multiply by pi and divide by half the number of seconds in a day), one harmonic 
+
+loess.total.abnd.fit.data[, ':=' (year.count = year - min(year),
+                                  sin.dist.21.June = sin(dist.21.June.radians), cos.dist.21.June = cos(dist.21.June.radians),
+                                  sin.dist.noon = sin(dist.noon.radians), cos.dist.noon = cos(dist.noon.radians))] 
+loess.total.abnd.fit.data
+
+bla <- predict(loess.abnd.model.full.NB, newdata = loess.total.abnd.fit.data, type = 'response', se.fit = T)
+loess.total.abnd.fit.data[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
+loess.total.abnd.fit.data[, .(mean.predicted.abnd = mean(predicted.abnd), mean.predicted.abnd.se = mean(predicted.abnd.se)), keyby = .(habitat, year)] # decline in bedouin agriculture and loess, increase in kkl plantings
+write_excel_csv(loess.total.abnd.fit.data[, .(mean.predicted.abnd = mean(predicted.abnd), mean.predicted.abnd.se = mean(predicted.abnd.se)), keyby = .(habitat, year)],
+                'Output/Predicted total reptile abundance in the Loess model3.csv')
+
+loess.total.abnd.fit.data[, .(mean.abnd = mean(predicted.abnd)), keyby = year] # As the trend is negative, we will compare the first year's value to the last year's value
+cat('Percent decline: ')
+1 - loess.total.abnd.fit.data[, .(mean.abnd = mean(predicted.abnd)), keyby = year][year == max(year), round(mean.abnd, 1)] / loess.total.abnd.fit.data[, .(mean.abnd = mean(predicted.abnd)), keyby = year][year == min(year), round(mean.abnd, 1)]
+```
+We found a 48.3% decline, from 8.9 reptiles per survey in 2014 to 4.6 reptiles per survey in 2020.
+Now we will plot the temporal trend:
+```{r}
+# Plot the temporal trend:
+loess.abnd.effect_plot <- effect_plot(model = loess.abnd.model.full.NB, partial.residuals = F,
+                                         pred = year.count, data = loess, colors = "Qual1", point.alpha = 0.25,
+                                         plot.points = F, jitter = c(0.1,0), int.type = 'confidence', line.colors = "black",
+                                         legend.main = strReverse('שנה'), pred.labels = 2013:2020) + 
+   theme_minimal() + theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = 'bottom',
+                     text = element_text(family = fontname, size = fontsize), axis.text = element_text(size = fontsize - 1),
+                     panel.grid.major = element_line(color = 'grey90', linetype = 5, linewidth = 1),
+                     panel.grid.minor = element_blank(), panel.grid.minor.x = element_blank()) + #  scale_y_continuous(limits = c(0, 8), breaks = 0:8) +
+  scale_x_continuous(breaks = loess[, sort(unique(year.count))], labels = loess[, .(year = unique(year)), keyby = year.count][, year]) +
+  labs(x = strReverse('שנה'), y = strReverse('שפע')) 
+loess.abnd.effect_plot # The prediction seems reasonable
+
+Cairo::Cairo(file = 'Figures/Loess abundance temporal trend effect plot.pdf', width = pdf_width, height = pdf_width*pdf_aspect_ratio,
+             type = "PDF", units = "mm")
+print(loess.abnd.effect_plot)
+dev.off()
+
+loess.total.abnd.fake.effect.plot <- ggplot(data = loess.total.abnd.fit.data[, .(mean.abnd = mean(predicted.abnd), mean.se = mean(predicted.abnd.se)), keyby = year], aes(x = year, y = mean.abnd)) +
+  # geom_jitter(data = loess, aes(x = year, y = total.abundance, color = habitat), alpha = 0.25, color = '#4e79b6', width = 0.2, height = 0.1) +
+  geom_ribbon(aes(x = year, ymin = mean.abnd - 1.96*mean.se, ymax = mean.abnd + 1.96*mean.se),
+              alpha = 0.25, color = NA) + # geom_hline(yintercept = 0) +
+  geom_line(linewidth = 1) + labs(y = strReverse('שפע כולל'), x = NULL) + 
+  theme_minimal() + theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = 'bottom',
+                          text = element_text(family = fontname, size = fontsize), axis.text = element_text(size = fontsize - 1),
+                          panel.grid.major = element_line(color = 'grey90', linetype = 5, linewidth = 1),
+                          panel.grid.minor = element_blank(), panel.grid.minor.x = element_blank()) #  scale_y_continuous(limits = c(0, 8), breaks = 0:8) +
+  
+loess.total.abnd.fake.effect.plot 
+
+Cairo::Cairo(file = "Figures/loess total abundance fake effect plot.pdf", width = pdf_width, height = pdf_width*pdf_aspect_ratio,
+             type = "PDF", units = "mm")
+print(loess.total.abnd.fake.effect.plot)
+dev.off()
+```
+## Planted Conifer Forest
+Data exploration:
+
+```{r}
+### Forest----
+reptiles[unit %like% 'Forest' & !is.na(SciName), .(total.abnd = sum(count_individuals), total.sp.rich = uniqueN(SciName))]
+reptiles[unit %like% 'Forest', unique(campaign), keyby = year]
+
+## Forest species richness----
+alpha.div[, sort(unique(unit))]
+Forest <- alpha.div[unit == 'Planted Conifer Forests']
+
+str(Forest)
+Forest[is.na(year) | is.na(subunit)] # no missing variables
+
+Forest[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(campaign, year, subunit, site)][no.of.surveys != 3] # Only Ramat Hashofet missed a survey (in 2015)
+Forest[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(campaign)][no.of.surveys != 45] # T1 missed one survey (Ramat HaShofet, as we noted)
+reptiles[unit %like% 'Forest' & campaign == 'T0', .(plot = unique(point_name)), keyby = .(subunit, site, start_Time)]
+# Meron and Ramat HaShofet are recorded in the original Excel file but not here!
+
+# Dot plots
+Forest.sp.rich.dotplot <- ggplot(data = Forest, aes(x = species.richness, y = site, color = subunit)) +
+  geom_point() +  geom_line(aes(group = site)) +
+  facet_grid(campaign ~ .) + labs(title = 'Reptile Species Richness in the Forest', y = 'Site', x = 'Species Richness') + 
+  scale_color_manual(values = okabe) + scale_x_continuous(limits = c(0, Forest[, max(species.richness)]),
+                                                          breaks = seq(0, Forest[, max(species.richness)], by = 1)) +
+  theme_bw() + theme(legend.position = 'bottom',
+                     plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+Forest.sp.rich.dotplot
+ggsave('Figures/Reptile species richness in the Forest - dotplot.png', plot = Forest.sp.rich.dotplot, scale = 1.25)
+
+Forest.abnd.dotplot <- ggplot(data = Forest, aes(x = total.abundance, y = site, color = subunit)) +
+  geom_point(aes(color = subunit)) +  geom_line(aes(group = site, color = subunit)) +
+  facet_grid(campaign ~ .) + labs(title = 'Reptile Total Abundance in the Forest', y = 'Site', x = 'Total Abundance') + 
+  scale_color_manual(values = okabe) + scale_x_continuous(limits = c(0, Forest[, max(total.abundance) + 1]),
+                                                          breaks = seq(0, Forest[, max(total.abundance) + 1], by = 2)) +
+  theme_bw() + theme(legend.position = 'bottom',
+                     plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+Forest.abnd.dotplot
+ggsave('Figures/Reptile Total Abundance in the Forest - dotplot.png', plot = Forest.abnd.dotplot, scale = 1.25)
+
+# The relevant predictor is the subunit and the temporal trend
+```
+Explore species richness:
+
+```{r}
+# Plot species richness
+ggplot(data = Forest, aes(x = subunit, y = species.richness, color = subunit)) + geom_boxplot() + 
+  geom_jitter(height = 0, width = 0.3) + facet_wrap(.~ year) + theme_bw()
+```
+2014 seem lower than the later years, and Galilee might be lower than the other subunits. Otherwise, there is no apparent trend.
+```{r}
+# Forest species richness - glmm model selection ----
+Forest[, .(mean.richness = mean(species.richness), var.richness = var(species.richness))] # var < mean -> try Poisson models
+
+anyNA(Forest[, .(subunit, sin.dist.21.June, cos.dist.21.June, sin.dist.noon, cos.dist.noon, species.richness)]) # No missing values
+reptiles[is.na(ITime)] # no missing ITimes in the original data
+
+# Full model, Poisson response
+Forest.sp.rich.model.full.Poisson <- glmmTMB(species.richness ~ subunit + sin.dist.21.June + cos.dist.21.June +
+                                              sin.dist.noon + cos.dist.noon + (1|site), family = 'poisson', data = Forest)
+summary(Forest.sp.rich.model.full.Poisson) 
+cat('PHI = ');  deviance(Forest.sp.rich.model.full.Poisson)/df.residual(Forest.sp.rich.model.full.Poisson)
+drop1(Forest.sp.rich.model.full.Poisson) # Can drop cosine distance to noon
+```
+PHI < 1 so we proceed with Poisson models. We can drop cosine diel pattern:
+
+```{r}
+Forest.sp.rich.model1 <- glmmTMB(species.richness ~ subunit + sin.dist.21.June + cos.dist.21.June +
+                                              sin.dist.noon + (1|site), family = 'poisson', data = Forest)
+summary(Forest.sp.rich.model1) 
+drop1(Forest.sp.rich.model1) # Can drop cosine distance to noon
+```
+We can drop the subunit since delta AIC < 2 if we do:
+```{r}
+Forest.sp.rich.model2 <- glmmTMB(species.richness ~ sin.dist.21.June + cos.dist.21.June +
+                                              sin.dist.noon + (1|site), family = 'poisson', data = Forest)
+summary(Forest.sp.rich.model2) 
+drop1(Forest.sp.rich.model2) # Can drop cosine distance to noon
+```
+No more predictors to drop. Proceed to model diagnostics:
+```{r}
+forest.sp.rich.sim.res <- simulateResiduals(Forest.sp.rich.model2)
+plot(forest.sp.rich.sim.res) 
+testDispersion(forest.sp.rich.sim.res) 
+testDispersion(forest.sp.rich.sim.res, alternative = 'less') 
+
+plot(forest.sp.rich.sim.res$fittedPredictedResponse, forest.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nForest species richness model 4')
+plot(fitted(Forest.sp.rich.model2), residuals(Forest.sp.rich.model2), main = 'Response scale residuals\nForest species richness model 4')
+
+# Export these graphs:
+png('Analysis/Model diagnostics/Forest species richness model 4 QQ Plot.png')
+plot(forest.sp.rich.sim.res)
+dev.off()
+
+png('Analysis/Model diagnostics/Forest species richness model 4 fitted vs. scaled residuals.png')
+plot(forest.sp.rich.sim.res$fittedPredictedResponse, forest.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nForest species richness model 4')
+dev.off()
+
+png('Analysis/Model diagnostics/Forest species richness model 4 fitted vs. residuals.png')
+plot(fitted(Forest.sp.rich.model2), residuals(Forest.sp.rich.model2), main = 'Response scale residuals\nForest species richness model 4')
+dev.off()
+```
+We have clear indications of under-dispersion  (yes, again), which means we have lower statistical power. 
+Back up and document species richness models:
+```{r}
+# The chosen model is Forest.sp.rich.model2 (time of day and season)
+capture.output(cat('The best fitting model for species richness in the planted forest is Forest.sp.rich.model2.\n'),
+               summary(Forest.sp.rich.model2), cat('\n------\n'), 
+               file = 'Output/Planted conifer forest species richness best fitting model.txt')
+
+for(model in ls()[grep('*Forest.sp.rich.model.', ls())]){
+  sp.rich.comparison <- rbind(sp.rich.comparison,
+                              data.table(unit = 'Planted Conifer Forest', model = model,
+                                         no.of.preds = length(attr(get(model)$modelInfo$terms$cond$fixed, 'term.labels')),
+                                         AIC = AIC(get(model)), BIC = BIC(get(model)),
+                                         data = as.character(get(model)$call$data),
+                                         family = as.character(get(model)$call$family),
+                                         formula = as.character(get(model)$call$formula)))
+}
+sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% 'species.richness')] # remove redundant rows
+sp.rich.comparison <- unique(sp.rich.comparison)
+setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
+sp.rich.comparison[unit == 'Planted Conifer Forest', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
+write_excel_csv(sp.rich.comparison, file = 'Analysis/Species richness models of reptiles - AIC comparison.csv')
+
+save(list = ls()[grep('*Forest.sp.rich.model', ls())], file = 'Analysis/Forest reptile species richness models.Rdata')
+rm(list = setdiff(ls()[grep('*Forest.sp.rich.model', ls())], c('Forest.sp.rich.model2'))) # Clean up
+```
+Again, no researcher's hypotheses were confirmed so we do not explore the chosen model's predictions but continue directly to total abundance:
+
+```{r}
+## Forest total abundance----
+str(Forest)
+Forest[is.na(year)] # no missing variables
+
+# The relevant predictor is the subunit and the temporal trend
+# Plot total abundance
+ggplot(data = Forest, aes(x = subunit, y = total.abundance, color = subunit)) + geom_boxplot() + 
+  geom_jitter(height = 0, width = 0.3) + facet_wrap(.~ year) + theme_bw()
+```
+Subunit and annual differences seem minor; Galilee could be lower. Start model selection for total reptile abundance:
+```{r}
+# Full model, Poisson response
+Forest.abnd.model.full.Poisson <- glmmTMB(total.abundance ~ subunit * year.count + sin.dist.21.June + cos.dist.21.June +
+                                               sin.dist.noon + cos.dist.noon + (1|site) , family = 'poisson', data = Forest)
+summary(Forest.abnd.model.full.Poisson)
+cat('PHI = '); deviance(Forest.abnd.model.full.Poisson)/df.residual(Forest.abnd.model.full.Poisson)
+drop1(Forest.abnd.model.full.Poisson) 
+```
+The trend is significantly positive, but PHI > 1. Let's try fitting a negative binomial full model:
+```{r}
+Forest.abnd.model.full.NB <- glmmTMB(total.abundance ~ subunit * year.count + sin.dist.21.June + cos.dist.21.June +
+                                               sin.dist.noon + cos.dist.noon + (1|site) , family = 'nbinom2', data = Forest)
+summary(Forest.abnd.model.full.NB)
+drop1(Forest.abnd.model.full.NB) 
+```
+AIC is clearly lower for the negative binomial model. We can drop the interaction between year and trend:
+
+```{r}
+Forest.abnd.model1 <- glmmTMB(total.abundance ~ subunit + year.count + sin.dist.21.June + cos.dist.21.June +
+                                               sin.dist.noon + cos.dist.noon + (1|site) , family = 'nbinom2', data = Forest)
+summary(Forest.abnd.model1)
+drop1(Forest.abnd.model1) 
+```
+We can further drop the cosine diel pattern:
+```{r}
+Forest.abnd.model2 <- glmmTMB(total.abundance ~ subunit + year.count + sin.dist.21.June + cos.dist.21.June +
+                                               sin.dist.noon + (1|site) , family = 'nbinom2', data = Forest)
+summary(Forest.abnd.model2)
+drop1(Forest.abnd.model2) 
+```
+Next, drop the trend:
+
+```{r}
+Forest.abnd.model3 <- glmmTMB(total.abundance ~ subunit + sin.dist.21.June + cos.dist.21.June +
+                                               sin.dist.noon + (1|site) , family = 'nbinom2', data = Forest)
+summary(Forest.abnd.model3)
+drop1(Forest.abnd.model3) 
+```
+No more predictors to drop. Proceed to model diagnostics:
+```{r}
+# The chosen model is Forest.abnd.model3 (subunit, diel pattern and seasonality with site ID)
+summary(Forest.abnd.model3)
+forest.abnd.sim.res <- simulateResiduals(Forest.abnd.model3)
+plot(forest.abnd.sim.res) # QQ plot seems ok; all tests are ok (non-significant)
+
+testDispersion(forest.abnd.sim.res) 
+testDispersion(forest.abnd.sim.res, alternative = 'less', plot = F) 
+
+plot(forest.abnd.sim.res$fittedPredictedResponse, forest.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nForest total abundance model 4')
+plot(fitted(Forest.abnd.model3), residuals(Forest.abnd.model3), main = 'Response scale residuals\nForest total abundance model 3')
+
+# Export these graphs:
+png('Analysis/Model diagnostics/Forest total abundance model 3 QQ Plot.png')
+plot(forest.abnd.sim.res)
+dev.off()
+
+png('Analysis/Model diagnostics/Forest total abundance model 3 fitted vs. scaled residuals.png')
+plot(forest.abnd.sim.res$fittedPredictedResponse, forest.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nForest total abundance model 3')
+dev.off()
+
+png('Analysis/Model diagnostics/Forest total abundance model 3 fitted vs. residuals.png')
+plot(fitted(Forest.abnd.model3), residuals(Forest.abnd.model3), main = 'Response scale residuals\nForest total abundance model 3')
+dev.off()
+```
+We found no significant problems this time. As one research hypothesis was included in the chosen model (subunit), let's proceed to test for significant differences between all 3 subunits:
+```{r}
+EMM <- emmeans(object = Forest.abnd.model3, ~subunit)
+test_results_land_use <- test(pairs(EMM), by=NULL, adjust="fdr")
+print(test_results_land_use)
+capture.output(test_results_land_use, file = 'Output/Compare Forest subunits - reptile abundance.txt') # Export the results
+```
+We found significant differences between Carmel and Galilee and between Carmel and Judean Highlands, but not between Galilee and Judean Highlands. Proceed to documenting and backing up the models:
+```{r}
+file.remove('Analysis/Planted Conifer Forest - total abundance model selection.txt')
+for (model in c(ls()[grep('*Forest.abnd.model', ls())])){
+  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
+                 file = 'Analysis/Planted Conifer Forest - total abundance model selection.txt', append = T)
+}
+# load('Analysis/Planted Conifer Forest - total abundance models.Rdata')
+save(list = ls()[grep('*Forest.abnd.model', ls())], file = 'Analysis/Planted Conifer Forest - total abundance models.Rdata')
+capture.output(cat('The best fitting model for total abundance in the Planted Conifer Forest is Forest.abnd.model3.'), 
+               summary(Forest.abnd.model3), file = 'Output/Planted Conifer Forest total abundance - best fitting model.txt', append = F)
+
+# Create a table comparing total abundance models:
+for(model in ls()[grep('*Forest.abnd.model', ls())]){
+  total.abnd.comparison <- rbind(total.abnd.comparison,
+                                 data.table(unit = 'Planted Conifer Forest', model = model,
+                                            no.of.preds = length(attr(get(model)$modelInfo$terms$cond$fixed, 'term.labels')),
+                                            AIC = AIC(get(model)), BIC = BIC(get(model)),
+                                            data = as.character(get(model)$call$data),
+                                            family = as.character(get(model)$call$family),
+                                            formula = as.character(get(model)$call$formula)))
+}
+total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %like% 'total.abundance')] # remove redundant rows
+total.abnd.comparison <- unique(total.abnd.comparison)
+setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
+total.abnd.comparison[unit == 'Planted Conifer Forest', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
+write_excel_csv(total.abnd.comparison, file = 'Analysis/Planted Conifer Forest total abundance models of reptiles - AIC comparison.csv')
+
+rm(list = setdiff(ls()[grep('*Forest.abnd.model', ls())], c('Forest.abnd.model3'))) # Clean up
+```
+We found that the subunit has a significant impact on reptile total abundance, so let's explore the chosen model's predictions:
+
+```{r}
+summary(Forest.abnd.model3)
+
+# Predict by the mean observed values
+reptiles[, sort(unique(unit))]
+quantile(reptiles[unit == 'Planted Conifer Forests', .(day.of.year = unique(yday(Date))), by = survey_ID][, day.of.year])
+# Dates vary from 98 (April 7th) to 329 (November 25th) with a median of 172 (June 21st)
+
+## Calculate the median radian angle of the date and time of sampling and use this for model fit to predict trends
+
+# Create a table to be filled by a loop with predictor values to be used for predictions
+Forest.total.abnd.fit.data <- data.table(expand.grid(site = NA, 
+  dist.21.June.radians = reptiles[unit == 'Planted Conifer Forests', .(dist.21.June.radians = unique(dist.21.June.radians)),
+                                  keyby = survey_ID][, median(dist.21.June.radians)],
+  dist.noon.radians = reptiles[unit == 'Planted Conifer Forests', .(dist.noon.radians = unique(dist.noon.radians)),
+                               keyby = survey_ID][, median(dist.noon.radians)],
+  subunit = Forest[, sort(unique(subunit))]))
+setorder(Forest.total.abnd.fit.data, subunit, dist.21.June.radians, dist.noon.radians)
+Forest.total.abnd.fit.data # seems ok
+Forest.total.abnd.fit.data[, ':=' (sin.dist.21.June = sin(dist.21.June.radians), cos.dist.21.June = cos(dist.21.June.radians),
+                                   sin.dist.noon = sin(dist.noon.radians))] # Calculate the sin and cosine of the distance from June 21st
+Forest.total.abnd.fit.data
+
+bla <- predict(Forest.abnd.model3, newdata = Forest.total.abnd.fit.data, type = 'response', se.fit = T)
+Forest.total.abnd.fit.data[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
+Forest.total.abnd.fit.data[, .(subunit, predicted.abnd, predicted.abnd.se)] 
+write_excel_csv(Forest.total.abnd.fit.data, file = 'Output/Planted forest - predictions of total reptile abundance.csv')
+```
+Predictions are considerably lower than the observations. Let's try predicting for range of surveyed dates to see if it a seasonal issue:
+```{r}
+Forest.total.abnd.fit.data2 <- data.table(expand.grid(site = NA, subunit = Forest[, unique(subunit)],
+                                                      dist.noon.radians = reptiles[unit == 'Planted Conifer Forests', .(dist.noon.radians = unique(dist.noon.radians)), keyby = survey_ID][, median(dist.noon.radians)],
+                                                      Date = seq.Date(from = as.Date('2015-04-07'), to = as.Date('2015-11-24'), by = 1)))
+Forest.total.abnd.fit.data2
+Forest.total.abnd.fit.data2[, ':=' (dist.21.June = yday(Date) - yday('2015-06-21'))]
+Forest.total.abnd.fit.data2[, ':=' (dist.21.June.radians = dist.21.June * pi /182.5)]
+Forest.total.abnd.fit.data2[, ':=' (sin.dist.21.June = sin(dist.21.June.radians),
+                                    cos.dist.21.June = cos(dist.21.June.radians),
+                                    sin.dist.noon = sin(dist.noon.radians))]
+bla2 <- predict(Forest.abnd.model3, newdata = Forest.total.abnd.fit.data2, type = 'response', se.fit = T)
+Forest.total.abnd.fit.data2[, ':=' (predicted.abnd = bla2$fit, predicted.abnd.se = bla2$se.fit)]
+Forest.total.abnd.fit.data2[, .(mean.predicted.abnd = mean(predicted.abnd)), keyby = .(subunit)] 
+
+ggplot(data = Forest.total.abnd.fit.data2, aes(x = Date, y = predicted.abnd, color = subunit)) + geom_line() +
+  geom_point(data = reptiles[unit %like% 'Forest' & is.rare.in.unit == F, .(total.abnd = sum(count_individuals, na.rm = T)),
+                             keyby = .(subunit, survey_ID, Date = as.Date(paste('2015', month(Date), day(Date), sep = '-')))],
+             aes(x = Date, y = total.abnd, color = subunit)) + scale_x_date(date_labels = '%d/%m')
+ggsave('Analysis/Forest.abnd.model3 Predictions and observations in reptile total abundance in Forest with seasonal pattern.png')
+
+Forest[, .(mean.abnd = mean(total.abundance, na.rm = T), var.abnd = var(total.abundance, na.rm = T),
+           median.abnd = median(total.abundance, na.rm = T)), keyby = subunit]
+```
+It seems that seasonal variation is considerable. As there are more observations (and higher abundance) in the spring, let's predict for May 1st this time:
+```{r}
+Forest.total.abnd.fit.data3 <- data.table(expand.grid(site = NA, subunit = Forest[, unique(subunit)],
+                                                      dist.noon.radians = reptiles[unit == 'Planted Conifer Forests', .(dist.noon.radians = unique(dist.noon.radians)), keyby = survey_ID][, median(dist.noon.radians)],
+                                                      Date = as.Date('2015-05-01')))
+Forest.total.abnd.fit.data3
+Forest.total.abnd.fit.data3[, ':=' (dist.21.June = yday(Date) - yday('2015-06-21'))]
+Forest.total.abnd.fit.data3[, ':=' (dist.21.June.radians = dist.21.June * pi /182.5)]
+Forest.total.abnd.fit.data3[, ':=' (sin.dist.21.June = sin(dist.21.June.radians),
+                                    cos.dist.21.June = cos(dist.21.June.radians),
+                                    sin.dist.noon = sin(dist.noon.radians))]
+bla2 <- predict(Forest.abnd.model3, newdata = Forest.total.abnd.fit.data3, type = 'response', se.fit = T)
+Forest.total.abnd.fit.data3[, ':=' (predicted.abnd = bla2$fit, predicted.abnd.se = bla2$se.fit)]
+Forest.total.abnd.fit.data3[, .(mean.predicted.abnd = mean(predicted.abnd)), keyby = .(subunit)] 
+
+ggplot(data = Forest.total.abnd.fit.data3, aes(x = subunit, y = predicted.abnd, color = subunit))  +
+  geom_boxplot(data = reptiles[unit %like% 'Forest' & is.rare.in.unit == F, .(total.abnd = sum(count_individuals, na.rm = T)),
+                             keyby = .(subunit, survey_ID)], aes(x = subunit, y = total.abnd, color = subunit)) + 
+  geom_point(shape = 2, size = 5) + theme_bw() + labs(title = 'Forest total abundance - observations vs. predictions',
+                                                      subtitle = 'Predictions are for May 1st; No trend was included in the final model')
+ggsave('Analysis/Forest.abnd.model3 Predictions and observations in reptile total abundance in Forest at May 1st.png')
+
+Forest[, .(mean.abnd = mean(total.abundance, na.rm = T), var.abnd = var(total.abundance, na.rm = T),
+           median.abnd = median(total.abundance, na.rm = T)), keyby = subunit]
+```
+This seems more or less ok. Proceed to plotting the effect of subunits:
+```{r}
+# Effect plot of subunit
+Forest.abnd.effect.plot <- effect_plot(model = Forest.abnd.model3, pred = subunit, data = Forest,  colors = "Qual1", point.size = 4,
+                                                   line.colors = 'black', point.alpha = 0.25, interval = T, plot.points = T, partial.residuals = F, 
+                                                   jitter = c(0.1,0), int.type = 'confidence', legend.main = strReverse('תת-יחידה')) + 
+  theme_minimal() + labs(x = strReverse('תת-יחידה'), y = strReverse('שפע כולל')) +
+  scale_x_discrete(labels = c(strReverse('הכרמל'), strReverse('הגליל'), strReverse('הרי יהודה'))) +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = 'bottom',
+        text = element_text(family = fontname, size = fontsize), axis.text = element_text(size = fontsize - 1),
+        panel.grid.major.y = element_line(color = 'grey90', linetype = 5, linewidth = 1),
+        panel.grid.minor = element_blank(), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
+Forest.abnd.effect.plot$layers[[2]]$geom_params$width <- 0.4
+Forest.abnd.effect.plot # Note that the order of the subunit is wrong - should be Galilee, Carmel and Judean Highlands (north to south)
+
+Cairo::Cairo(file = 'Figures/Planted Conifer Forest total abundance model3 effect plot - subunits.pdf', width = pdf_width, height = pdf_width*pdf_aspect_ratio,
+             type = "PDF", units = "mm")
+print(Forest.abnd.effect.plot)
+dev.off()
+```
