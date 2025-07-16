@@ -1,0 +1,238 @@
+OID,Unit_ID,Unit_Heb,Unit_Eng,Site_ID,Site_Heb,Proximity,Type,Plot,Specie_Heb,Specie_Eng,Observations,Date,Year,
+,,,Coastal Sand,Ashdod,,Far,Shifting,1,שנונית חולות,Acanthodactylus scutellatus,2,9/30/2014,2014,AshdodFarShifting1
+,,,Coastal Sand,Ashdod,,Far,Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,8,9/30/2014,2014,AshdodFarShifting1
+,,,Coastal Sand,Ashdod,,Far,Shifting,1,נחושית חולות,Sphenops sepsoides,2,9/30/2014,2014,AshdodFarShifting1
+,,,Coastal Sand,Ashdod,,Far,Shifting,2,שנונית חולות,Acanthodactylus scutellatus,4,9/30/2014,2014,AshdodFarShifting2
+,,,Coastal Sand,Ashdod,,Far,Shifting,2,ישימונית מצויה,Stenodactylus sthenodactylus,11,9/30/2014,2014,AshdodFarShifting2
+,,,Coastal Sand,Ashdod,,Far,Shifting,2,נחושית חולות,Sphenops sepsoides,1,9/30/2014,2014,AshdodFarShifting2
+,,,Coastal Sand,Ashdod,,Far,Shifting,3,שנונית חולות,Acanthodactylus scutellatus,2,9/30/2014,2014,AshdodFarShifting3
+,,,Coastal Sand,Ashdod,,Far,Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,5,9/30/2014,2014,AshdodFarShifting3
+,,,Coastal Sand,Ashdod,,Far,Shifting,3,נחושית חולות,Sphenops sepsoides,2,9/30/2014,2014,AshdodFarShifting3
+,,,Coastal Sand,Ashdod,,Far,Shifting,3,צפע מצוי,Daboia palaestinae,1,9/30/2014,2014,AshdodFarShifting3
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,1,שנונית חולות,Acanthodactylus scutellatus,4,9/30/2014,2014,AshdodFarSemi Shifting1
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,17,9/30/2014,2014,AshdodFarSemi Shifting1
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,1,נחושית חולות,Sphenops sepsoides,5,9/30/2014,2014,AshdodFarSemi Shifting1
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,2,שנונית חולות,Acanthodactylus scutellatus,3,9/30/2014,2014,AshdodFarSemi Shifting2
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,2,ישימונית מצויה,Stenodactylus sthenodactylus,6,9/30/2014,2014,AshdodFarSemi Shifting2
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,2,נחושית חולות,Sphenops sepsoides,4,9/30/2014,2014,AshdodFarSemi Shifting2
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,2,מטבעון מדבר,Spalerosophis diadema,1,9/30/2014,2014,AshdodFarSemi Shifting2
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,3,שנונית חולות,Acanthodactylus scutellatus,15,9/30/2014,2014,AshdodFarSemi Shifting3
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,9,9/30/2014,2014,AshdodFarSemi Shifting3
+,,,Coastal Sand,Ashdod,,Far,Semi Shifting,3,נחושית חולות,Sphenops sepsoides,8,9/30/2014,2014,AshdodFarSemi Shifting3
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,1,שנונית חולות,Acanthodactylus scutellatus,2,10/1/2014,2014,AshdodNearSemi Shifting1
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,7,10/1/2014,2014,AshdodNearSemi Shifting1
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,1,נחושית חולות,Sphenops sepsoides,9,10/1/2014,2014,AshdodNearSemi Shifting1
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,1,מטבעון מדבר,Spalerosophis diadema,1,10/1/2014,2014,AshdodNearSemi Shifting1
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,2,שנונית חולות,Acanthodactylus scutellatus,2,10/1/2014,2014,AshdodNearSemi Shifting2
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,2,ישימונית מצויה,Stenodactylus sthenodactylus,4,10/1/2014,2014,AshdodNearSemi Shifting2
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,2,נחושית חולות,Sphenops sepsoides,19,10/1/2014,2014,AshdodNearSemi Shifting2
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,3,שנונית חולות,Acanthodactylus scutellatus,1,10/1/2014,2014,AshdodNearSemi Shifting3
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,11,10/1/2014,2014,AshdodNearSemi Shifting3
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,3,נחושית חולות,Sphenops sepsoides,4,10/1/2014,2014,AshdodNearSemi Shifting3
+,,,Coastal Sand,Ashdod,,Near,Semi Shifting,3,ארבע-קו מובהק,Psammophis schokari,2,10/1/2014,2014,AshdodNearSemi Shifting3
+,,,Coastal Sand,Ashkelon,,Far,Shifting,1,שנונית חולות,Acanthodactylus scutellatus,2,10/5/2014,2014,AshkelonFarShifting1
+,,,Coastal Sand,Ashkelon,,Far,Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,8,10/5/2014,2014,AshkelonFarShifting1
+,,,Coastal Sand,Ashkelon,,Far,Shifting,1,נחושית חולות,Sphenops sepsoides,3,10/5/2014,2014,AshkelonFarShifting1
+,,,Coastal Sand,Ashkelon,,Far,Shifting,1,נחושית עינונית,Chalcides ocellatus,1,10/5/2014,2014,AshkelonFarShifting1
+,,,Coastal Sand,Ashkelon,,Far,Shifting,1,מטבעון מדבר,Spalerosophis diadema,1,10/5/2014,2014,AshkelonFarShifting1
+,,,Coastal Sand,Ashkelon,,Far,Shifting,2,שנונית חולות,Acanthodactylus scutellatus,2,10/1/2014,2014,AshkelonFarShifting2
+,,,Coastal Sand,Ashkelon,,Far,Shifting,2,נחושית חולות,Sphenops sepsoides,2,10/1/2014,2014,AshkelonFarShifting2
+,,,Coastal Sand,Ashkelon,,Far,Shifting,2,מטבעון מדבר,Spalerosophis diadema,1,10/1/2014,2014,AshkelonFarShifting2
+,,,Coastal Sand,Ashkelon,,Far,Shifting,2,ארבע-קו מובהק,Psammophis schokari,1,10/1/2014,2014,AshkelonFarShifting2
+,,,Coastal Sand,Ashkelon,,Far,Shifting,3,שנונית חולות,Acanthodactylus scutellatus,2,10/5/2014,2014,AshkelonFarShifting3
+,,,Coastal Sand,Ashkelon,,Far,Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,6,10/5/2014,2014,AshkelonFarShifting3
+,,,Coastal Sand,Ashkelon,,Far,Shifting,3,נחושית חולות,Sphenops sepsoides,11,10/5/2014,2014,AshkelonFarShifting3
+,,,Coastal Sand,Ashkelon,,Far,Shifting,3,נחושית עינונית,Chalcides ocellatus,1,10/5/2014,2014,AshkelonFarShifting3
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,1,צב-יבשה מצוי,Testudo graeca,1,10/5/2014,2014,AshkelonFarSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,1,שנונית חולות,Acanthodactylus scutellatus,4,10/5/2014,2014,AshkelonFarSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,4,10/5/2014,2014,AshkelonFarSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,1,נחושית חולות,Sphenops sepsoides,3,10/5/2014,2014,AshkelonFarSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,1,נחש חולות,Lytorhynchus diadema,4,10/5/2014,2014,AshkelonFarSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,1,ארבע-קו מובהק,Psammophis schokari,1,10/5/2014,2014,AshkelonFarSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,2,ישימונית מצויה,Stenodactylus sthenodactylus,5,10/5/2014,2014,AshkelonFarSemi Shifting2
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,2,נחושית חולות,Sphenops sepsoides,3,10/5/2014,2014,AshkelonFarSemi Shifting2
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,3,שנונית חולות,Acanthodactylus scutellatus,1,10/5/2014,2014,AshkelonFarSemi Shifting3
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,6,10/5/2014,2014,AshkelonFarSemi Shifting3
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,3,נחושית חולות,Sphenops sepsoides,1,10/5/2014,2014,AshkelonFarSemi Shifting3
+,,,Coastal Sand,Ashkelon,,Far,Semi Shifting,3,נחש חולות,Lytorhynchus diadema,1,10/5/2014,2014,AshkelonFarSemi Shifting3
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,4,10/1/2014,2014,AshkelonNearSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,1,נחושית חולות,Sphenops sepsoides,6,10/1/2014,2014,AshkelonNearSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,1,נחושית עינונית,Chalcides ocellatus,2,10/1/2014,2014,AshkelonNearSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,1,נחש חולות,Lytorhynchus diadema,1,10/1/2014,2014,AshkelonNearSemi Shifting1
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,2,זיקית,Chamaeleo chamaeleon,1,10/1/2014,2014,AshkelonNearSemi Shifting2
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,2,שנונית חולות,Acanthodactylus scutellatus,2,10/1/2014,2014,AshkelonNearSemi Shifting2
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,2,ישימונית מצויה,Stenodactylus sthenodactylus,10,10/1/2014,2014,AshkelonNearSemi Shifting2
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,2,נחושית חולות,Sphenops sepsoides,14,10/1/2014,2014,AshkelonNearSemi Shifting2
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,2,נחש חולות,Lytorhynchus diadema,1,10/1/2014,2014,AshkelonNearSemi Shifting2
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,2,10/5/2014,2014,AshkelonNearSemi Shifting3
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,3,נחושית חולות,Sphenops sepsoides,3,10/5/2014,2014,AshkelonNearSemi Shifting3
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,3,נחושית עינונית,Chalcides ocellatus,1,10/5/2014,2014,AshkelonNearSemi Shifting3
+,,,Coastal Sand,Ashkelon,,Near,Semi Shifting,3,צפע מצוי,Daboia palaestinae,1,10/5/2014,2014,AshkelonNearSemi Shifting3
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,1,שנונית חולות,Acanthodactylus scutellatus,1,10/13/2014,2014,Netiv HaasaraFarShifting1
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,7,10/13/2014,2014,Netiv HaasaraFarShifting1
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,1,נחושית חולות,Sphenops sepsoides,1,10/13/2014,2014,Netiv HaasaraFarShifting1
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,2,שנונית חולות,Acanthodactylus scutellatus,1,10/13/2014,2014,Netiv HaasaraFarShifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,2,שנונית ארוכת-כף,Acanthodactylus aegyptius,1,10/13/2014,2014,Netiv HaasaraFarShifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,2,ישימונית מצויה,Stenodactylus sthenodactylus,8,10/13/2014,2014,Netiv HaasaraFarShifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,3,שנונית ארוכת-כף,Acanthodactylus aegyptius,1,10/13/2014,2014,Netiv HaasaraFarShifting3
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,7,10/13/2014,2014,Netiv HaasaraFarShifting3
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,3,נחושית חולות,Sphenops sepsoides,2,10/13/2014,2014,Netiv HaasaraFarShifting3
+,,,Coastal Sand,Netiv Haasara,,Far,Shifting,3,נחושית עינונית,Chalcides ocellatus,1,10/13/2014,2014,Netiv HaasaraFarShifting3
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,1,שנונית חולות,Acanthodactylus scutellatus,1,10/13/2014,2014,Netiv HaasaraFarSemi Shifting1
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,13,10/13/2014,2014,Netiv HaasaraFarSemi Shifting1
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,1,צפע מצוי,Daboia palaestinae,2,10/13/2014,2014,Netiv HaasaraFarSemi Shifting1
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,2,צב-יבשה מצוי,Testudo graeca,1,10/13/2014,2014,Netiv HaasaraFarSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,2,שנונית חולות,Acanthodactylus scutellatus,1,10/13/2014,2014,Netiv HaasaraFarSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,2,שנונית ארוכת-כף,Acanthodactylus aegyptius,1,10/13/2014,2014,Netiv HaasaraFarSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,2,ישימונית מצויה,Stenodactylus sthenodactylus,3,10/13/2014,2014,Netiv HaasaraFarSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,2,נחושית חולות,Sphenops sepsoides,3,10/13/2014,2014,Netiv HaasaraFarSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,2,נחושית עינונית,Chalcides ocellatus,2,10/13/2014,2014,Netiv HaasaraFarSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,9,10/13/2014,2014,Netiv HaasaraFarSemi Shifting3
+,,,Coastal Sand,Netiv Haasara,,Far,Semi Shifting,3,נחושית חולות,Sphenops sepsoides,3,10/13/2014,2014,Netiv HaasaraFarSemi Shifting3
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,1,שנונית ארוכת-כף,Acanthodactylus aegyptius,1,10/13/2014,2014,Netiv HaasaraNearSemi Shifting1
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,1,ישימונית מצויה,Stenodactylus sthenodactylus,5,10/13/2014,2014,Netiv HaasaraNearSemi Shifting1
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,1,נחושית חולות,Sphenops sepsoides,2,10/13/2014,2014,Netiv HaasaraNearSemi Shifting1
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,2,ישימונית מצויה,Stenodactylus sthenodactylus,14,10/13/2014,2014,Netiv HaasaraNearSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,2,נחושית חולות,Sphenops sepsoides,2,10/13/2014,2014,Netiv HaasaraNearSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,2,נחש חולות,Lytorhynchus diadema,6,10/13/2014,2014,Netiv HaasaraNearSemi Shifting2
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,3,ישימונית מצויה,Stenodactylus sthenodactylus,8,10/13/2014,2014,Netiv HaasaraNearSemi Shifting3
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,3,נחושית חולות,Sphenops sepsoides,2,10/13/2014,2014,Netiv HaasaraNearSemi Shifting3
+,,,Coastal Sand,Netiv Haasara,,Near,Semi Shifting,3,נחושית עינונית,Chalcides ocellatus,1,10/13/2014,2014,Netiv HaasaraNearSemi Shifting3
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,4,צב-יבשה מצוי,Testudo graeca,3,4/16/2014,2014,Beir YatirNearSlope4
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,4,חרדון מצוי,Laudakia stellio,1,4/16/2014,2014,Beir YatirNearSlope4
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,5,עינחש,Ophisops elegans,5,4/16/2014,2014,Beir YatirNearSlope5
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,5,חנק,Eryx jaculus,1,4/16/2014,2014,Beir YatirNearSlope5
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,1,חרדון מצוי,Laudakia stellio,1,4/16/2014,2014,Beir YatirNearSlope1
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,1,מניפנית מצויה,Ptyodactylus guttatus,1,4/16/2014,2014,Beir YatirNearSlope1
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,1,עינחש,Ophisops elegans,5,4/16/2014,2014,Beir YatirNearSlope1
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,1,חומט מנומר,Eumeces schneideri,1,4/16/2014,2014,Beir YatirNearSlope1
+,,,Transition Zone,Beir Yatir,בית יתיר,Near,Slope,1,חומט פסים,Trachylepis vittata,1,4/16/2014,2014,Beir YatirNearSlope1
+,,,Transition Zone,Beir Yatir,בית יתיר,Far,Slope,1,עינחש,Ophisops elegans,1,4/16/2014,2014,Beir YatirFarSlope1
+,,,Transition Zone,Beir Yatir,בית יתיר,Far,Slope,1,נימון דק,Leptotyphlops macrorhynchus,1,4/16/2014,2014,Beir YatirFarSlope1
+,,,Transition Zone,Beir Yatir,בית יתיר,Far,Slope,2,חרדון מצוי,Laudakia stellio,1,6/26/2014,2014,Beir YatirFarSlope2
+,,,Transition Zone,Beir Yatir,בית יתיר,Far,Slope,2,שממית בתים,Hemidactylus turcicus,1,6/26/2014,2014,Beir YatirFarSlope2
+,,,Transition Zone,Beir Yatir,בית יתיר,Far,Slope,2,מניפנית מצויה,Ptyodactylus guttatus,2,6/26/2014,2014,Beir YatirFarSlope2
+,,,Transition Zone,Beir Yatir,בית יתיר,Far,Slope,2,עינחש,Ophisops elegans,1,6/26/2014,2014,Beir YatirFarSlope2
+,,,Transition Zone,Beir Yatir,בית יתיר,Far,Slope,3,עינחש,Ophisops elegans,1,5/27/2014,2014,Beir YatirFarSlope3
+,,,Transition Zone,Beir Yatir,בית יתיר,Far,Slope,3,ארבע-קו מובהק,Psammophis schokari,1,5/27/2014,2014,Beir YatirFarSlope3
+,,,Transition Zone,Har Amasa,הר עמשא,Near,Slope,2,עינחש,Ophisops elegans,1,5/27/2014,2014,Har AmasaNearSlope2
+,,,Transition Zone,Har Amasa,הר עמשא,Near,Slope,3,חרדון מצוי,Laudakia stellio,2,5/27/2014,2014,Har AmasaNearSlope3
+,,,Transition Zone,Har Amasa,הר עמשא,Near,Slope,3,עינחש,Ophisops elegans,2,5/27/2014,2014,Har AmasaNearSlope3
+,,,Transition Zone,Har Amasa,הר עמשא,Near,Slope,1,צב-יבשה מצוי,Testudo graeca,1,5/27/2014,2014,Har AmasaNearSlope1
+,,,Transition Zone,Har Amasa,הר עמשא,Far,Slope,2,מניפנית מצויה,Ptyodactylus guttatus,1,5/27/2014,2014,Har AmasaFarSlope2
+,,,Transition Zone,Har Amasa,הר עמשא,Far,Slope,5,מניפנית מצויה,Ptyodactylus guttatus,1,6/26/2014,2014,Har AmasaFarSlope5
+,,,Transition Zone,Har Amasa,הר עמשא,Far,Slope,5,עינחש,Ophisops elegans,1,6/26/2014,2014,Har AmasaFarSlope5
+,,,Transition Zone,Har Amasa,הר עמשא,Far,Slope,5,נחושית עינונית,Chalcides ocellatus,1,6/26/2014,2014,Har AmasaFarSlope5
+,,,Transition Zone,Har Amasa,הר עמשא,Far,Slope,1,חרדון מצוי,Laudakia stellio,1,6/26/2014,2014,Har AmasaFarSlope1
+,,,Transition Zone,Har Amasa,הר עמשא,Far,Slope,1,עינחש,Ophisops elegans,2,4/16/2014,2014,Har AmasaFarSlope1
+,,,Transition Zone,Lehavim,להבים,Near,Slope,11,עינחש,Ophisops elegans,1,6/26/2014,2014,LehavimNearSlope11
+,,,Transition Zone,Lehavim,להבים,Near,Slope,5,חומט גמד,Ablepharus rueppellii,2,4/24/2014,2014,LehavimNearSlope5
+,,,Transition Zone,Lehavim,להבים,Far,Slope,4,שממית בתים,Hemidactylus turcicus,1,4/24/2014,2014,LehavimFarSlope4
+,,,Transition Zone,Lehavim,להבים,Far,Slope,4,חומט מנומר,Eumeces schneideri,1,4/24/2014,2014,LehavimFarSlope4
+,,,Transition Zone,Lehavim,להבים,Far,Slope,4,חומט פסים,Trachylepis vittata,1,4/24/2014,2014,LehavimFarSlope4
+,,,Transition Zone,Lehavim,להבים,Far,Slope,2,נחושית עינונית,Chalcides ocellatus,1,4/24/2014,2014,LehavimFarSlope2
+,,,Transition Zone,Lehavim,להבים,Far,Slope,2,נחושית נחשונית,Chalcides guentheri,1,4/24/2014,2014,LehavimFarSlope2
+,,,Transition Zone,Lahav,להב,Near,Slope,3,חרדון מצוי,Laudakia stellio,1,5/5/2014,2014,LahavNearSlope3
+,,,Transition Zone,Lahav,להב,Near,Slope,3,נחושית עינונית,Chalcides ocellatus,1,5/5/2014,2014,LahavNearSlope3
+,,,Transition Zone,Lahav,להב,Near,Slope,3,נחושית נחשונית,Chalcides guentheri,1,5/5/2014,2014,LahavNearSlope3
+,,,Transition Zone,Lahav,להב,Near,Slope,1,שממית בתים,Hemidactylus turcicus,1,5/5/2014,2014,LahavNearSlope1
+,,,Transition Zone,Lahav,להב,Near,Slope,1,חומט פסים,Trachylepis vittata,1,5/5/2014,2014,LahavNearSlope1
+,,,Transition Zone,Lahav,להב,Near,Slope,1,נחושית עינונית,Chalcides ocellatus,1,5/5/2014,2014,LahavNearSlope1
+,,,Transition Zone,Lahav,להב,Near,Slope,1,נחושית נחשונית,Chalcides guentheri,6,5/5/2014,2014,LahavNearSlope1
+,,,Transition Zone,Lahav,להב,Near,Slope,1,נחשיל חד-ראש,Typhlops simoni,1,5/5/2014,2014,LahavNearSlope1
+,,,Transition Zone,Lahav,להב,Near,Slope,4,נחושית נחשונית,Chalcides guentheri,1,5/5/2014,2014,LahavNearSlope4
+,,,Transition Zone,Lahav,להב,Far,Slope,1,נחושית עינונית,Chalcides ocellatus,1,5/5/2014,2014,LahavFarSlope1
+,,,Transition Zone,Lahav,להב,Far,Slope,2,חומט מנומר,Eumeces schneideri,1,5/5/2014,2014,LahavFarSlope2
+,,,Transition Zone,Mirsham,מרשם,Near,Slope,1,חומט פסים,Trachylepis vittata,1,6/10/2014,2014,MirshamNearSlope1
+,,,Transition Zone,Mirsham,מרשם,Near,Slope,9,נחושית נחשונית,Chalcides guentheri,1,6/10/2014,2014,MirshamNearSlope9
+,,,Transition Zone,Mirsham,מרשם,Near,Slope,8,מניפנית מצויה,Ptyodactylus guttatus,2,6/10/2014,2014,MirshamNearSlope8
+,,,Transition Zone,Mirsham,מרשם,Near,Slope,8,עינחש,Ophisops elegans,1,6/10/2014,2014,MirshamNearSlope8
+,,,Transition Zone,Mirsham,מרשם,Near,Slope,8,חומט פסים,Trachylepis vittata,2,6/10/2014,2014,MirshamNearSlope8
+,,,Transition Zone,Mirsham,מרשם,Near,Slope,8,נחושית עינונית,Chalcides ocellatus,2,6/10/2014,2014,MirshamNearSlope8
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,12,חומט מנומר,Eumeces schneideri,1,6/10/2014,2014,MirshamFarSlope12
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,12,נחושית עינונית,Chalcides ocellatus,2,6/10/2014,2014,MirshamFarSlope12
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,2,חומט פסים,Trachylepis vittata,2,6/10/2014,2014,MirshamFarSlope2
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,2,נחושית נחשונית,Chalcides guentheri,1,6/10/2014,2014,MirshamFarSlope2
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,2,זעמן שחור,Dolichophis jugularis,1,6/10/2014,2014,MirshamFarSlope2
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,11,צב-יבשה מצוי,Testudo graeca,1,6/10/2014,2014,MirshamFarSlope11
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,11,עינחש,Ophisops elegans,1,6/10/2014,2014,MirshamFarSlope11
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,11,נחושית עינונית,Chalcides ocellatus,1,6/10/2014,2014,MirshamFarSlope11
+,,,Transition Zone,Mirsham,מרשם,Far,Slope,11,תלום-קשקשים מצוי,Malpolon monspessulanus,1,6/10/2014,2014,MirshamFarSlope11
+,,,Conifer Forests,Kabri,כברי,KKL,Slope,1,מניפנית מצויה,Ptyodactylus puiseuxi,2,8/4/2014,2014,KabriKKLSlope1
+,,,Conifer Forests,Kabri,כברי,KKL,Slope,2,חרדון מצוי,Laudakia stellio,1,8/4/2014,2014,KabriKKLSlope2
+,,,Conifer Forests,Kabri,כברי,KKL,Slope,2,שממית בתים,Hemidactylus turcicus,1,8/4/2014,2014,KabriKKLSlope2
+,,,Conifer Forests,Kabri,כברי,KKL,Slope,3,לטאה זריזה,Lacerta laevis,1,8/4/2014,2014,KabriKKLSlope3
+,,,Conifer Forests,Zuriel,צוריאל,KKL,Slope,2,חומט גמד,Ablepharus rueppellii,4,8/4/2014,2014,ZurielKKLSlope2
+,,,Conifer Forests,Zuriel,צוריאל,KKL,Slope,3,שממית בתים,Hemidactylus turcicus,1,8/4/2014,2014,ZurielKKLSlope3
+,,,Conifer Forests,Zuriel,צוריאל,KKL,Slope,3,חומט גמד,Ablepharus rueppellii,1,8/4/2014,2014,ZurielKKLSlope3
+,,,Conifer Forests,Manara,מנרה,KKL,Slope,1,עינחש,Ophisops elegans,1,8/5/2014,2014,ManaraKKLSlope1
+,,,Conifer Forests,Manara,מנרה,KKL,Slope,2,חומט גמד,Ablepharus rueppellii,2,8/5/2014,2014,ManaraKKLSlope2
+,,,Conifer Forests,Ramot Naftali,רמות נפתלי,KKL,Slope,1,לטאה זריזה,Lacerta laevis,1,8/5/2014,2014,Ramot NaftaliKKLSlope1
+,,,Conifer Forests,Ramot Naftali,רמות נפתלי,KKL,Slope,2,שממית בתים,Hemidactylus turcicus,1,8/5/2014,2014,Ramot NaftaliKKLSlope2
+,,,Conifer Forests,Ramot Naftali,רמות נפתלי,KKL,Slope,2,חומט גמד,Ablepharus rueppellii,1,8/5/2014,2014,Ramot NaftaliKKLSlope2
+,,,Conifer Forests,Ramot Naftali,רמות נפתלי,KKL,Slope,3,חומט גמד,Ablepharus rueppellii,2,8/5/2014,2014,Ramot NaftaliKKLSlope3
+,,,Conifer Forests,Elyakim,אליקים,KKL,Slope,1,חומט גמד,Ablepharus rueppellii,2,7/22/2014,2014,ElyakimKKLSlope1
+,,,Conifer Forests,Elyakim,אליקים,KKL,Slope,2,חומט גמד,Ablepharus rueppellii,2,7/22/2014,2014,ElyakimKKLSlope2
+,,,Conifer Forests,Elyakim,אליקים,KKL,Slope,3,חומט גמד,Ablepharus rueppellii,1,7/22/2014,2014,ElyakimKKLSlope3
+,,,Conifer Forests,Bat Shlomo,בת שלמה,KKL,Slope,3,שממית בתים,Hemidactylus turcicus,3,7/30/2014,2014,Bat ShlomoKKLSlope3
+,,,Conifer Forests,Ofer,עופר,KKL,Slope,1,חומט גמד,Ablepharus rueppellii,1,7/30/2014,2014,OferKKLSlope1
+,,,Conifer Forests,Ofer,עופר,KKL,Slope,3,חומט גמד,Ablepharus rueppellii,1,7/30/2014,2014,OferKKLSlope3
+,,,Conifer Forests,Kerem Maharal,כרם מהרל,KKL,Slope,1,חומט גמד,Ablepharus rueppellii,3,9/1/2014,2014,Kerem MaharalKKLSlope1
+,,,Conifer Forests,Kerem Maharal,כרם מהרל,KKL,Slope,1,זעמן זיתני,Platyceps collaris,1,9/1/2014,2014,Kerem MaharalKKLSlope1
+,,,Conifer Forests,Kerem Maharal,כרם מהרל,KKL,Slope,3,שממית בתים,Hemidactylus turcicus,1,9/1/2014,2014,Kerem MaharalKKLSlope3
+,,,Conifer Forests,Eshtaol,אשתאול,KKL,Slope,3,חומט גמד,Ablepharus rueppellii,1,8/10/2014,2014,EshtaolKKLSlope3
+,,,Conifer Forests,Eshtaol,אשתאול,KKL,Slope,4,שממית בתים,Hemidactylus turcicus,1,8/10/2014,2014,EshtaolKKLSlope4
+,,,Conifer Forests,Eitanim,איתנים,KKL,Slope,2,חומט גמד,Ablepharus rueppellii,1,8/11/2014,2014,EitanimKKLSlope2
+,,,Conifer Forests,Amatzia,אמציה,KKL,Slope,1,שממית בתים,Hemidactylus turcicus,3,8/31/2014,2014,AmatziaKKLSlope1
+,,,Conifer Forests,Amatzia,אמציה,KKL,Slope,2,צב-יבשה מצוי,Testudo graeca,1,8/31/2014,2014,AmatziaKKLSlope2
+,,,Conifer Forests,Amatzia,אמציה,KKL,Slope,2,שממית בתים,Hemidactylus turcicus,1,8/31/2014,2014,AmatziaKKLSlope2
+,,,Conifer Forests,Amatzia,אמציה,KKL,Slope,2,עינחש,Ophisops elegans,1,8/31/2014,2014,AmatziaKKLSlope2
+,,,Conifer Forests,Amatzia,אמציה,KKL,Slope,3,שממית בתים,Hemidactylus turcicus,1,8/31/2014,2014,AmatziaKKLSlope3
+,,,Conifer Forests,Givat Yeshayahu,גבעת ישעיהו,KKL,Slope,2,שממית בתים,Hemidactylus turcicus,1,8/31/2014,2014,Givat YeshayahuKKLSlope2
+,,,Conifer Forests,Givat Yeshayahu,גבעת ישעיהו,KKL,Slope,3,צב-יבשה מצוי,Testudo graeca,1,8/31/2014,2014,Givat YeshayahuKKLSlope3
+,,,Conifer Forests,Givat Yeshayahu,גבעת ישעיהו,KKL,Slope,3,שממית בתים,Hemidactylus turcicus,1,8/31/2014,2014,Givat YeshayahuKKLSlope3
+,,,Conifer Forests,Aderet,אדרת,KKL,Slope,2,שממית בתים,Hemidactylus turcicus,1,9/24/2014,2014,AderetKKLSlope2
+,,,Conifer Forests,Aderet,אדרת,KKL,Slope,2,לטאה זריזה,Lacerta laevis,1,9/24/2014,2014,AderetKKLSlope2
+,,,Conifer Forests,Aderet,אדרת,KKL,Slope,3,חרדון מצוי,Laudakia stellio,1,9/24/2014,2014,AderetKKLSlope3
+,,,Conifer Forests,Aderet,אדרת,KKL,Slope,3,שממית בתים,Hemidactylus turcicus,1,9/24/2014,2014,AderetKKLSlope3
+,,,Savannah,Park Hatzerim,פארק חצרים,,Loess,2,שממית בתים,Hemidactylus turcicus,1,6/16/2014,2014,Park HatzerimLoess2
+,,,Savannah,Park Hatzerim,פארק חצרים,,Loess,2,נחושית עינונית,Chalcides ocellatus,1,6/16/2014,2014,Park HatzerimLoess2
+,,,Savannah,Park Hatzerim,פארק חצרים,,Loess,1,מדברית עינונית,Mesalina guttulata,1,6/16/2014,2014,Park HatzerimLoess1
+,,,Savannah,Nahal Ashan,נחל עשן,,Loess,1,עינחש,Ophisops elegans,2,6/23/2014,2014,Nahal AshanLoess1
+,,,Savannah,Nahal Ashan,נחל עשן,,Loess,1,חומט מנומר,Eumeces schneideri,1,6/23/2014,2014,Nahal AshanLoess1
+,,,Savannah,Nahal Ashan,נחל עשן,,Loess,1,נחושית עינונית,Chalcides ocellatus,2,6/23/2014,2014,Nahal AshanLoess1
+,,,Savannah,Nahal Ashan,נחל עשן,,Loess,2,מניפנית מצויה,Ptyodactylus guttatus,1,6/23/2014,2014,Nahal AshanLoess2
+,,,Savannah,Nahal Ashan,נחל עשן,,Loess,2,נחושית עינונית,Chalcides ocellatus,1,6/23/2014,2014,Nahal AshanLoess2
+,,,Savannah,Nahal Ashan,נחל עשן,,Loess,3,מדברית עינונית,Mesalina guttulata,1,6/23/2014,2014,Nahal AshanLoess3
+,,,Savannah,Nahal Ashan,נחל עשן,,Loess,3,נחושית עינונית,Chalcides ocellatus,1,6/23/2014,2014,Nahal AshanLoess3
+,,,Savannah,Park Loess,פארק הלס,,Loess,1,מדברית עינונית,Mesalina guttulata,3,7/1/2014,2014,Park LoessLoess1
+,,,Savannah,Park Loess,פארק הלס,,Loess,1,שנונית באר שבע,Acanthodactylus beershebensis,8,7/1/2014,2014,Park LoessLoess1
+,,,Savannah,Park Loess,פארק הלס,,Loess,1,נחושית עינונית,Chalcides ocellatus,1,7/1/2014,2014,Park LoessLoess1
+,,,Savannah,Park Loess,פארק הלס,,Loess,2,כוח אפור,Varanus griseus,1,7/1/2014,2014,Park LoessLoess2
+,,,Savannah,Park Loess,פארק הלס,,Loess,2,חרדון מדבר,Trapelus pallida,1,7/1/2014,2014,Park LoessLoess2
+,,,Savannah,Park Loess,פארק הלס,,Loess,2,מדברית פסים,Mesalina olivieri,1,7/1/2014,2014,Park LoessLoess2
+,,,Savannah,Park Loess,פארק הלס,,Loess,2,שנונית באר שבע,Acanthodactylus beershebensis,2,7/1/2014,2014,Park LoessLoess2
+,,,Savannah,Park Loess,פארק הלס,,Loess,2,שנונית נחלים,Acanthodactylus boskianus,4,7/1/2014,2014,Park LoessLoess2
+,,,Savannah,Park Loess,פארק הלס,,Loess,3,כוח אפור,Varanus griseus,1,7/1/2014,2014,Park LoessLoess3
+,,,Savannah,Park Loess,פארק הלס,,Loess,3,שנונית באר שבע,Acanthodactylus beershebensis,13,7/1/2014,2014,Park LoessLoess3
+,,,Savannah,Park Hatzerim,פארק חצרים,,Planting,1,נחושית עינונית,Chalcides ocellatus,1,6/16/2014,2014,Park HatzerimPlanting1
+,,,Savannah,Nahal Ashan,נחל עשן,,Planting,1,נחושית עינונית,Chalcides ocellatus,1,6/23/2014,2014,Nahal AshanPlanting1
+,,,Savannah,Nahal Ashan,נחל עשן,,Planting,2,חרדון מצוי,Laudakia stellio,1,6/23/2014,2014,Nahal AshanPlanting2
+,,,Savannah,Nahal Ashan,נחל עשן,,Planting,2,שממית בתים,Hemidactylus turcicus,4,6/23/2014,2014,Nahal AshanPlanting2
+,,,Savannah,Nahal Ashan,נחל עשן,,Planting,2,נחושית עינונית,Chalcides ocellatus,1,6/23/2014,2014,Nahal AshanPlanting2
+,,,Savannah,Nahal Ashan,נחל עשן,,Planting,2,זיקית,Chamaeleo chamaeleon,1,6/23/2014,2014,Nahal AshanPlanting2
+,,,Savannah,Nahal Ashan,נחל עשן,,Planting,3,מדברית עינונית,Mesalina guttulata,1,6/23/2014,2014,Nahal AshanPlanting3
+,,,Savannah,Mishmar Hanegev,משמר הנגב,,Planting,1,חרדון מצוי,Laudakia stellio,1,7/1/2014,2014,Mishmar HanegevPlanting1
+,,,Savannah,Mishmar Hanegev,משמר הנגב,,Planting,3,חומט פסים,Trachylepis vittata,1,7/1/2014,2014,Mishmar HanegevPlanting3
+,,,Savannah,Mishmar Hanegev,משמר הנגב,,Planting,3,זיקית,Chamaeleo chamaeleon,1,7/1/2014,2014,Mishmar HanegevPlanting3
+,,,Savannah,Eshel Hanasi,אשל הנשיא,,Agriculture,1,חרדון מצוי,Laudakia stellio,1,6/16/2014,2014,Eshel HanasiAgriculture1
+,,,Savannah,Eshel Hanasi,אשל הנשיא,,Agriculture,1,עינחש,Ophisops elegans,5,6/16/2014,2014,Eshel HanasiAgriculture1
+,,,Savannah,Eshel Hanasi,אשל הנשיא,,Agriculture,3,עינחש,Ophisops elegans,3,6/16/2014,2014,Eshel HanasiAgriculture3
+,,,Savannah,Mishmar Hanegev,משמר הנגב,,Agriculture,1,עינחש,Ophisops elegans,5,7/1/2014,2014,Mishmar HanegevAgriculture1
+,,,Savannah,Mishmar Hanegev,משמר הנגב,,Agriculture,2,עינחש,Ophisops elegans,2,7/1/2014,2014,Mishmar HanegevAgriculture2
+,,,Savannah,Mishmar Hanegev,משמר הנגב,,Agriculture,3,חרדון מצוי,Laudakia stellio,5,7/1/2014,2014,Mishmar HanegevAgriculture3
+,,,Savannah,Mishmar Hanegev,משמר הנגב,,Agriculture,3,מדברית עינונית,Mesalina guttulata,1,7/1/2014,2014,Mishmar HanegevAgriculture3
+,,,Savannah,Givot Bar,גבעות בר,,Agriculture,1,עינחש,Ophisops elegans,4,7/1/2014,2014,Givot BarAgriculture1
+,,,Savannah,Givot Bar,גבעות בר,,Agriculture,2,חרדון מצוי,Laudakia stellio,1,7/1/2014,2014,Givot BarAgriculture2
+,,,Savannah,Givot Bar,גבעות בר,,Agriculture,2,עינחש,Ophisops elegans,6,7/1/2014,2014,Givot BarAgriculture2
+,,,Savannah,Givot Bar,גבעות בר,,Agriculture,3,עינחש,Ophisops elegans,4,7/1/2014,2014,Givot BarAgriculture3
