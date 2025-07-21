@@ -1,0 +1,22 @@
+.Rproj.user
+# Output/
+Output/*.tif
+Figures/
+docs/
+data/GIS/
+.RData
+.Rhistory
+gis/
+Analysis/Model diagnostics/
+Analysis/R_Workspaces/
+*.png
+*.shp
+*.gpkg
+*.Rdata
+*.prj
+*.qmd
+*.dbf
+*.shx
+*.eml
+*.zip
+*.tif
