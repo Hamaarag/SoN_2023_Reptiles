@@ -1,1 +1,0 @@
-The best fitting model for species richness in the Coastal Dunes is coast.sp.rich.model4.
