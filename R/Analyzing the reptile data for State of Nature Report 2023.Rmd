@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Setup
 
 First, load the required R packages:
-```{r}
+```{r load packages}
 # Setup----
 library(tidyverse)
 library(readxl)
@@ -31,7 +31,7 @@ library(emmeans) # For pairwise comparison among factor levels
 library(DHARMa) # Examining GLMM model fit
 library(terra) # for handling raster data
 library(renv)
-library(here)
+
 Sys.setlocale("LC_ALL", "Hebrew") # For reading and writing csv files with Hebrew
 # knitr::opts_knit$set(root.dir = 'C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/git/Reptiles') # Change this to your file path
 okabe <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", 'red')
@@ -43,7 +43,7 @@ If need be, register the fonts (only once per computer):
 ```
 
 Define the standards (font, output size and reverse Hebrew text) for graphical output:
-```{r}
+```{r parameters}
 fontname = "Almoni ML v5 AAA"
 fontsize=22
 pdf_width=160
@@ -53,89 +53,19 @@ strReverse <- function(x){sapply(lapply(strsplit(x, NULL), rev), paste, collapse
 
 Load the raw reptile data:
 
-```{r}
+```{r load data}
 # Load the data----
-# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
-# Reptile data:
-#load("../data/processed/wrangled_reptile_data_T0-T4.Rdata") #load the wrangled data
-
-reptiles <- readRDS("../data/processed/wrangled_reptile_data_T0-T4.rds")
-
-#reptiles <- fread("../data/processed/wrangled reptile data T0-T4.csv")
-#
-#change all columns to factors
-# changeCols <- colnames(reptiles)[which(as.data.table(as.vector(reptiles[,lapply(.SD, class)]))[1,]=="character")]
-# reptiles[,(changeCols):= lapply(.SD, as.factor), .SDcols = changeCols]
-
-# Columns to convert to factors
-# cols_to_factor <- c("unit", "campaign", "site", "point_name", "settlements", "acriculture", "habitat", "dunes", "heb_name")
-# 
-# # Apply as.factor() to the specified columns
-# reptiles[cols_to_factor] <- lapply(reptiles[cols_to_factor], as.factor)
-# 
-# cols_to_numeric <- c("year", "mean_lat", "mean_lon", "count_individuals")
-# reptiles[cols_to_factor] <- lapply(reptiles[cols_to_numeric], as.numeric)
-
-```
-
-## Incidence matrix
-Here we will generate and export basic data incidence matrix.
-
-```{r incidence matrix}
-# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
-# Define the left hand side (LHS) of the casting function (i.e. the variables defining the survey event itself rather than species found in the survey = the identity variables):
-LHS <- c('unit', 'year','campaign', 'subunit', 'site', 'point_name','survey_ID', 'Date', 'sin.dist.21.June','cos.dist.21.June',
-         'sin.dist.noon','cos.dist.noon','settlements','agriculture','dunes','habitat','mean.lon','mean.lat')
-### 4. Incidence matrix----
-reptiles[, Occurrence := ifelse(count_individuals > 0, 1, 0)]
-rept.incidence <- dcast(reptiles[count_individuals > 0], as.formula(paste(paste(LHS, collapse = "+"), "~ SciName")),
-                   value.var = 'Occurrence', fun.aggregate = mean)
-bla <- as.data.frame(rept.incidence)
-bla[is.na(bla)] <- 0
-rept.incidence <- bla
-rm(bla)
-any(rept.incidence[, 21:length(rept.incidence)] > 1) # are any incidence values greater then 1? This should be FALSE
-# too.many.incidences <- rept.incidence %>% filter(if_any(all_of(names(rept.incidence[, 21:length(rept.incidence)])), ~ . > 1))
-rept.incidence <- as.data.table(rept.incidence)
-rept.incidence
-write_excel_csv(rept.incidence, file = '../output/Reptile incidence table T0-T4.csv')
-
-```
-
-# Overall data summary
-Count the number of surveys per unit and the overall number of surveys:
-```{r data summary}
-cat("Survey years: ", reptiles[, min(year)], "-", reptiles[, max(year)], "\n")
-cat("The total number of surveys is", reptiles[, uniqueN(survey_ID)], "\n") # total number of surveys
-cat("The total number of plots is", reptiles[, uniqueN(point_name)], "\n") # Total number of plots
-cat("Number of survey campaigns per unit: ")
-reptiles[, .(no.of.campaigns = uniqueN(campaign)), keyby = unit]
-cat("Number of observations:", reptiles[!is.na(SciName), .N], "\n")
-cat("Total number of individuals:", reptiles[, sum(count_individuals)], "\n")
-cat("Total number of species:", reptiles[!is.na(SciName), uniqueN(SciName)])
-```
-
-## Species per unit
-List the species per unit:
-```{r}
-sp.per.unit <- reptiles[!is.na(SciName), .(total.abundance = sum(count_individuals), no.of.surveys.found = uniqueN(survey_ID)), keyby = .(unit, SciName, heb_name)]
-sp.per.unit
-write_excel_csv(sp.per.unit, "../output/Reptile species per unit.csv")
-```
-
-Species per site:
-```{r}
-sp.per.site <- reptiles[!is.na(SciName), .(total.abundance = sum(count_individuals), no.of.surveys.found = uniqueN(survey_ID)), keyby = .(unit, site, SciName, heb_name)]
-sp.per.site
-write_excel_csv(sp.per.site, "../output/Reptile species per site.csv")
-dcast(sp.per.site, heb_name ~ unit + site, fun.aggregate = sum, value.var = "total.abundance")
-write_excel_csv(dcast(sp.per.site, heb_name ~ unit + site, fun.aggregate = sum, value.var = "total.abundance"), "../output/Reptile species per site - cast.csv")
+reptiles <- readRDS("../data/wrangled_reptile_data_T0-T4.rds")
+#reptiles <- fread("../data/wrangled reptile data T0-T4.csv")
 ```
 
 ## Alpha diveristy
 Generate a table of alpha diversity: species richness, total reptile abundance and geometric mean abundance per survey (defined here as a unique plot-campaign combination).
 
 ```{r alpha diversity}
+# Define the left hand side (LHS) of the casting function (i.e. the variables defining the survey event itself rather than species found in the survey = the identity variables):
+LHS <- c('unit', 'year','campaign', 'subunit', 'site', 'point_name','survey_ID', 'Date', 'sin.dist.21.June','cos.dist.21.June',
+         'sin.dist.noon','cos.dist.noon','settlements','agriculture','dunes','habitat','mean.lon','mean.lat')
 # Species richness
 sp.richness.data <- reptiles[count_individuals > 0, .(species.richness = uniqueN(SciName)), keyby = LHS]
 sp.richness.data[, uniqueN(survey_ID)] # 630 surveys over all
@@ -262,9 +192,6 @@ Although AIC can be lowered by removing the Region as well, we refrain from doin
 summary(coast.sp.rich.model4)
 coast.sp.rich.sim.res <- simulateResiduals(coast.sp.rich.model4) # simulate the residuals using DHARMa package for model diagnostics
 plot(coast.sp.rich.sim.res)# The quantile, KS and dispersion tests are significant
-png('../output/Coastal Plain species richness QQ plot.png') # Export the QQ plot
-plot(coast.sp.rich.sim.res) 
-dev.off()
 ```
 The QQ plot does not look good: the Kolmogorov-Smirnov test is significant (meaning the data came from a different distribution than the model's) and the dispersion test is significant as well. That might mean either over-dispersion (meaning increased type I error rate) or under-dispersion (meaning increased type II error, i.e. lower statistical power). We should investigate which one is it. In addition, the scaled residuals (scaled from 0 to 1, where 0 meaning all observed values are higher than the prediction and 1 meaning all observed values are lower than the predictions) test significant. Let's further explore these issues:
 
@@ -283,21 +210,6 @@ We found that the data are under-dispersed (i.e. lower statistical power) and al
 Let's document the AIC and BIC of all examined models as an R data.table and export it as a csv for future reference:
 
 ```{r}
-file.remove('../output/Coastal Dunes - species richness model selection.txt')
-for (model in c(ls()[grep('*coast.sp.rich.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                 file = '../output/Coastal Dunes - species richness model selection.txt', append = T)
-}
-# load('../output/Coast Dunes - Species richness models.Rdata')
-save(list = ls()[grep('*coast.sp.rich.model', ls())], file = '../output/Coast Dunes - Species richness models.Rdata') # back up the models
-capture.output(cat('The best fitting model for species richness in the Coastal Dunes is coast.sp.rich.model4.'), 
-               summary(coast.sp.rich.model4), cat('\n----\nNote that the model is underdispersed (i.e. has low power):\n'),
-               testDispersion(coast.sp.rich.sim.res, alternative = 'less', plot = F), # Significant (p < 2.2e-16) -> underdispersion
-               testDispersion(coast.sp.rich.sim.res, alternative = 'greater', plot = F), # Insignificant (p = 1) -> not overdispersion
-               testZeroInflation(coast.sp.rich.sim.res, alternative = 'greater', plot = F), # p = 1, meaning there is no zero-inflation
-               testZeroInflation(coast.sp.rich.sim.res, alternative = 'less', plot = F), # Significant (p < 2.2e-16) -> fewer zeroes than expected
-file = '../output/Coastal Dunes species richness - best fitting model.txt', append = F)
-
 # Create a table comparing total abundance models:
 sp.rich.comparison <- data.table(unit = '', model = '',  data = '', family = '', formula = '', no.of.preds = 0, AIC = 0, BIC = 0) # Create a data.table to be filled by a loop
 sp.rich.comparison <- sp.rich.comparison[AIC > 0] # empty the data.table
@@ -315,7 +227,6 @@ sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% '
 sp.rich.comparison <- unique(sp.rich.comparison)
 setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
 sp.rich.comparison[unit == 'Coast Sands'] # View the table
-write_excel_csv(sp.rich.comparison, file = '../output/Species richness models of reptiles - AIC comparison.csv')
 ```
 Once we are done with the models not chosen, we can remove them from memory:
 
@@ -337,13 +248,11 @@ coast.abnd.dotplot <- ggplot(data = coast, aes(x = total.abundance, y = site)) +
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 coast.abnd.dotplot
-ggsave('../output/Reptile Total Abundance in the coastal sands - dotplot.png', plot = coast.abnd.dotplot)
 
 str(coast)
 coast[, .(mean.abundance = mean(total.abundance, na.rm = T), var.abundance = var(total.abundance, na.rm = T))] # var >> mean -> try negative binomial
 
 ggplot(data = coast, aes(x = dunes, color = settlements, y = total.abundance)) + geom_boxplot() + labs(title = 'Coastal Sands Reptiles') + geom_jitter(height = 0, width = 0.3) +  facet_wrap(. ~ year) + theme_bw() # 2017-2019 seem higher than the other years
-ggsave('../output/Coastal Sands total reptile abundance - observations.png')
 ```
 Ashdod semi-shifting Far in T0 and in T3 had counts of 17(!) reptiles, which seems like too much. Let's have a look at that:
 
@@ -420,38 +329,10 @@ coast.abnd.sim.res <- simulateResiduals(coast.total.abnd.model5) # simulate the 
 plot(coast.abnd.sim.res) # No significant problems detected
 plot(coast.abnd.sim.res$fittedPredictedResponse, coast.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nCoastal Plain abundance model 5')
 plot(fitted(coast.total.abnd.model5), residuals(coast.total.abnd.model5), main = 'Response scale residuals\nCoastal Plain abundance model 5')
-
-# Export these graphs:
-png('../output/Coastal Plain abundance model 5 QQ Plot.png')
-plot(coast.abnd.sim.res)
-dev.off()
-
-png('../output/Coastal Plain abundance model 5 - DHARMa predicted response vs scaled residuals.png')
-plot(coast.abnd.sim.res$fittedPredictedResponse, coast.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nCoastl Plain abundance model 5') 
-dev.off()
-png('../output/Coastal Plain abundance model 5 -  fitted values vs residuals.png')
-plot(fitted(coast.total.abnd.model5), residuals(coast.total.abnd.model5), main = 'Response scale residuals\nCoastal Plain abundance')
-dev.off()
-# Plot the scaled residuals vs. fitted (predicted) response - no pattern here
 ```
 There are no clear patterns/issues with the model fit.
 Back up all models, create a table comparing their AIC and BIC scores and keep only the selected model:
 ```{r}
-file.remove('../output/Coastal Dunes - total abundance model selection.txt')
-for (model in c(ls()[grep('*coast.total.abnd.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                 file = '../output/Coastal Dunes - total abundance model selection.txt', append = T)
-}
-# load('output/Coast Dunes - total abundance models.Rdata')
-save(list = ls()[grep('*coast.total.abnd.model', ls())], file = '../output/Coast Dunes - total abundance models.Rdata')
-capture.output(cat('The best fitting model for species richness in the Coastal Dunes is coast.total.abnd.model5.'), 
-               summary(coast.total.abnd.model5), 
-               testDispersion(coast.abnd.sim.res, alternative = 'less', plot = F), 
-               testDispersion(coast.abnd.sim.res, alternative = 'greater', plot = F), 
-               testZeroInflation(coast.abnd.sim.res, alternative = 'greater', plot = F), 
-               testZeroInflation(coast.abnd.sim.res, alternative = 'less', plot = F), 
-               file = '../output/Coastal Dunes total abundance - best fitting model.txt', append = F)
-
 # Create a table comparing total abundance models:
 total.abnd.comparison <- data.table(unit = '', model = '',  data = '', family = '', formula = '', no.of.preds = 0, AIC = 0, BIC = 0) # Create a data.table to be filled by a loop
 total.abnd.comparison <- total.abnd.comparison[AIC > 0] # empty the data.table
@@ -469,7 +350,6 @@ total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %l
 total.abnd.comparison <- unique(total.abnd.comparison)
 setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
 total.abnd.comparison[unit == 'Coast Sands'] # View the table
-write_excel_csv(total.abnd.comparison, file = '../output/Coastal Dunes total abundance models of reptiles - AIC comparison.csv')
 
 rm(list = setdiff(ls()[grep('*coast.total.abnd.model', ls())], c('coast.total.abnd.model5'))) # Clean up
 ```
@@ -483,9 +363,6 @@ summary(coast.total.abnd.model5)
 reptiles[, sort(unique(unit))]
 quantile(reptiles[unit == 'Coastal Plain Sands', .(day.of.year = unique(yday(date))), by = survey_ID][, day.of.year])
 # Dates vary from 202 (July 21st) to 293 (October 20th) with a median of 263 (September 20th)
-
-#quantile(reptiles[unit == 'Coastal Plain Sands', .(Time = as.numeric((unique(ITime))), by = survey_ID][, Time])
-# Hours vary from 05:40 to 19:40, with a median of 13:49:30
 
 ## Calculate the mean radian angle of the date and time of sampling and use this for model fit to predict trends
 # Create a table to be filled by a loop with predictor values to be used for predictions
@@ -528,7 +405,6 @@ ggplot(data = coast.total.abnd.sea, aes(x = as.Date(paste(2017, month(Date), mda
              aes(x = as.Date, y = total.abnd)) + labs(x = 'Date', y = 'Abundance', title = 'Coastal Sands Reptiles',
                                                       subtitle = 'Predicted and observed abundance') +
   facet_wrap(. ~ year) + scale_x_date(date_labels = '%b')
-ggsave('../output/coast.total.abnd.model5 seasonal Predictions and observations in reptile total abundance in the Coastal Sand Dunes.png')
 ```
 
 ```{r}
@@ -548,13 +424,11 @@ bla <- predict(coast.total.abnd.model5, newdata = coast.total.abnd.fit.data, typ
 coast.total.abnd.fit.data[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
 coast.total.abnd.fit.data[, .(settlements, predicted.abnd, predicted.abnd.se)] # 
 coast.total.abnd.fit.data # Now the predictions finally make sense!
-write_excel_csv(coast.total.abnd.fit.data, '../output/Reptile predicted total abundance in the Coastal Sands model7.csv')
 
 coast.total.abnd.pred <- melt(unique(coast.total.abnd.fit.data[, .(settlements, Region, predicted.abnd)]),
                                      id.vars = c('settlements', 'Region'), variable.name = 'quality', value.name = 'predicted.abnd')
 setorder(coast.total.abnd.pred, settlements, Region)
 coast.total.abnd.pred # seems ok
-write_excel_csv(coast.total.abnd.pred, file = '../output/Coastal sands - predictions of total reptile abundance.csv')
 ```
 
 Calculate the mean abundance in Near and Far plots, and calculate the percent difference between the rounded values:
@@ -655,36 +529,10 @@ testDispersion(inland.sands.sp.rich.sim.res, alternative = 'less', plot = F) # p
 
 plot(inland.sands.sp.rich.sim.res$fittedPredictedResponse, inland.sands.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nInland Sands species richness model 5')
 plot(fitted(inland.sands.sp.rich.model5), residuals(inland.sands.sp.rich.model5), main = 'Response scale residuals\nInland Sands species richness model 5')
-
-# Export these graphs:
-png('../output/Inland Sands species richness model 5 QQ Plot.png')
-plot(inland.sands.sp.rich.sim.res)
-dev.off()
-
-png('../output/Inland Sands species richness model fitted vs. scaled residuals.png')
-plot(inland.sands.sp.rich.sim.res$fittedPredictedResponse, inland.sands.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nInland Sands species richness model 5')
-dev.off()
-
-png('../output/Inland Sands species richness model 5 fitted vs. residuals.png')
-plot(fitted(inland.sands.sp.rich.model5), residuals(inland.sands.sp.rich.model5), main = 'Response scale residuals\nInland Sands species richness model 5')
-dev.off()
 ```
 The main issue seem to be under-dispersion, which means lower statistical power.
 Model back up and documentation of the model selection process:
 ```{r}
-file.remove('../output/Inner sands - species richness model selection.txt')
-for (model in c(ls()[grep('*inland.sands.sp.rich.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                 file = '../output/Inner sands - species richness model selection.txt', append = T)
-}
-# load('output/Inner sands - Species richness models.Rdata')
-save(list = ls()[grep('*inland.sands.sp.rich.model', ls())], file = '../output/Inner sands - Species richness models.Rdata')
-capture.output(cat('The best fitting model for species richness in the inner sands is the null model.'), 
-               summary(inland.sands.sp.rich.model5), 
-               testDispersion(inland.sands.sp.rich.sim.res, alternative = 'greater', plot = F) ,# p = 1, suggesting under-dispersion
-               testDispersion(inland.sands.sp.rich.sim.res, alternative = 'less', plot = F), # p < 2.2e-16 -> under-dispersion, small power
-               file = '../output/Inner sands species richness - best fitting model.txt', append = F)
-
 # Create a table comparing species richness models:
 for(model in ls()[grep('*inland.sands.sp.rich.model.', ls())]){
   sp.rich.comparison <- rbind(sp.rich.comparison,
@@ -699,7 +547,6 @@ sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% '
 sp.rich.comparison <- unique(sp.rich.comparison)
 setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
 sp.rich.comparison[unit == 'Inner sands', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
-write_excel_csv(sp.rich.comparison, file = '../output/Species richness models of reptiles - AIC comparison.csv')
 
 rm(list = setdiff(ls()[grep('*inland.sands.sp.rich.model', ls())], c('inland.sands.sp.rich.model5'))) # Clean up
 ```
@@ -777,19 +624,6 @@ testDispersion(inland.sands.abnd.sim.res, alternative = 'less', plot = F) # p < 
 
 plot(inland.sands.abnd.sim.res$fittedPredictedResponse, inland.sands.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nInland Sands abundance model 5')
 plot(fitted(inland.sands.total.abnd.model6), residuals(inland.sands.total.abnd.model6), main = 'Response scale residuals\nInland Sands abundance model 5')
-
-# Export these graphs:
-png('../output/Inland Sands abundance model 5 QQ Plot.png')
-plot(inland.sands.abnd.sim.res)
-dev.off()
-
-png('../output/Inland Sands abundance model fitted vs. scaled residuals.png')
-plot(inland.sands.abnd.sim.res$fittedPredictedResponse, inland.sands.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nInland Sands abundance model 5')
-dev.off()
-
-png('../output/Inland Sands abundance model 5 fitted vs. residuals.png')
-plot(fitted(inland.sands.total.abnd.model6), residuals(inland.sands.total.abnd.model6), main = 'Response scale residuals\nInland Sands abundance model 5')
-dev.off()
 ```
 The quantile test is significant, which means that there is some non-linearity in the data that is not captured by the model (according to this answer: https://stats.stackexchange.com/questions/548478/how-to-interpret-meaning-of-residual-vs-predicted-quantile-plots-in-dharma)
 ```{r}
@@ -797,21 +631,6 @@ The quantile test is significant, which means that there is some non-linearity i
 summary(inland.sands.total.abnd.model6)
 hist(resid(inland.sands.total.abnd.model6)) # mostly from -4 to +4
 quantile(resid(inland.sands.total.abnd.model6)) # inter-quartile range: -1.7 to 0.9; median = -0.3
-
-file.remove('../output/inland.sandsal Dunes - total abundance model selection.txt')
-for (model in c(ls()[grep('*inland.sands.total.abnd.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                                                   file = '../output/inland sands - total abundance model selection.txt', append = T)
-}
-# load('../output/inland sands - total abundance models.Rdata')
-save(list = ls()[grep('*inland.sands.total.abnd.model', ls())], file = '../output/inland sands - total abundance models.Rdata')
-capture.output(cat('The best fitting model for total abundance in the inland.sands is inland.sands.total.abnd.model6.'),
-                   summary(inland.sands.total.abnd.model6),
-               cat('\n----\nTest for quantile deviation for the trend:\n'),
-               testQuantiles(inland.sands.abnd.sim.res, predictor = inland.sands$year.count, plot = F), #
-               cat('\n----\nTest for quantile deviation for the sine seasonality:\n'),
-               testQuantiles(inland.sands.abnd.sim.res, predictor = inland.sands$sin.dist.21.June, plot = F), #
-               file = '../output/inland.sands total abundance - best fitting model.txt', append = F)
 
 # Create a table comparing total abundance models:
 for(model in setdiff(ls()[grep('*inland.sands.total.abnd.model.', ls())], "inland.sands.total.abnd.model8.effect.plot")){
@@ -827,7 +646,6 @@ total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %l
 total.abnd.comparison <- unique(total.abnd.comparison)
 setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
 total.abnd.comparison[unit == 'Inland Sands', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
-write_excel_csv(total.abnd.comparison, file = '../output/Reptiles total abundance models of reptiles - AIC comparison.csv')
 
 rm(list = setdiff(ls()[grep('*inland.sands.total.abnd.model', ls())], c('inland.sands.total.abnd.model6'))) # Clean up
 ```
@@ -880,7 +698,6 @@ ggplot(data = inland.sands.total.abnd.seas.pred, aes(x = as.Date(paste(2017, mon
                                                       subtitle = 'Predicted and observed abundance') +
   facet_wrap(. ~ year) +
   scale_x_date(date_labels = '%d/%m') # The predictions are much lower than the observations
-ggsave('../output/inland.sands.total.abnd.model6 seasonal Predictions and observations in reptile total abundance in Inland Sands.png')
 ```
 The seasonal pattern of the model suggests a peak in September, when no surveys were conducted... We will take July 20th predictions instead. Let's prepare the data for prediction:
 ```{r}
@@ -907,7 +724,6 @@ inland.sands.total.abnd.fit.data[year == min(year) & site == inland.sands[, sort
 inland.sands.total.abnd.fit.data[year == max(floor(year)) & site == inland.sands[, sort(unique(site))[1]], .(predicted.abnd = mean(predicted.abnd), predicted.abnd.se = mean(predicted.abnd.se)), keyby = .(year, site)] # ...to 5.4 in 2021
 cat('Percent decline in total reptile abundance in the inland sands: '); 1 - inland.sands.total.abnd.fit.data[year == max(floor(year)) & site == inland.sands[, sort(unique(site))[1]], round(mean(predicted.abnd), 1)] / inland.sands.total.abnd.fit.data[year == min(year) & site == inland.sands[, sort(unique(site))[1]], round(mean(predicted.abnd),1)]
 inland.sands.total.abnd.fit.data # Now the predictions finally make sense!
-write_excel_csv(inland.sands.total.abnd.fit.data, '../output/Reptile predicted total abundance in the Inland Sands model6.csv')
 ```
 Plot the total abundance trend:
 ```{r}
@@ -982,7 +798,6 @@ We can drop the habitat altogether, but before we so, let's compare the p-values
 EMM <- emmeans(object = loess.sp.rich.model1, ~habitat + year.count)
 test_results_land_use <- test(pairs(EMM, by = 'year.count'), by = NULL, adjust="fdr")
 print(test_results_land_use)
-capture.output(test_results_land_use, file = '../output/Loess compare habitats - reptile species richness.txt') # Export the results
 ```
 And now let's proceed to dropping the habitat from the model:
 ```{r}
@@ -1022,33 +837,10 @@ testDispersion(loess.sp.rich.sim.res, alternative = 'less', plot = F) # p < 2.2e
 
 plot(loess.sp.rich.sim.res$fittedPredictedResponse, loess.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nLoess species richness model 4')
 plot(fitted(loess.sp.rich.model4), residuals(loess.sp.rich.model4), main = 'Response scale residuals\nLoess species richness model 4')
-
-# Export these graphs:
-png('../output/Loess species richness model 4 QQ Plot.png')
-plot(loess.sp.rich.sim.res)
-dev.off()
-
-png('../output/Loess species richness model 4 fitted vs. scaled residuals.png')
-plot(loess.sp.rich.sim.res$fittedPredictedResponse, loess.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nLoess species richness model 4')
-dev.off()
-
-png('../output/Loess species richness model 4 fitted vs. residuals.png')
-plot(fitted(loess.sp.rich.model4), residuals(loess.sp.rich.model4), main = 'Response scale residuals\nLoess species richness model 4')
-dev.off()
 ```
 We can see clear indications of under-dispersion because the results of the testDispersion functions with the alternative of lower dispersion are highly significant. This means we have lower statistical power (increased type II error rate). In addition we see that there are some over-predictions for the seasonal and diel predictors. However, as none of the research hypotheses predictors were included in the final model, we will not try to predict species richness in the Loess anyway.
 Back up all the Loess species richness models and document the model selection process:
 ```{r}
-file.remove('../output/Loess - species richness model selection.txt')
-for (model in c(ls()[grep('*loess.sp.rich.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                 file = '../output/Loess - species richness model selection.txt', append = T)
-}
-# load('output/Inner sands - Species richness models.Rdata')
-save(list = ls()[grep('*loess.sp.rich.model', ls())], file = '../output/Inner sands - Species richness models.Rdata')
-capture.output(cat('The best fitting model for species richness in the loess is loess.sp.rich.model4.'), 
-               summary(loess.sp.rich.model4), file = '../output/Loess species richness - best fitting model.txt', append = F)
-
 # Create a table comparing total abundance models:
 for(model in ls()[grep('*loess.sp.rich.model.', ls())]){
   sp.rich.comparison <- rbind(sp.rich.comparison,
@@ -1063,7 +855,6 @@ sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% '
 sp.rich.comparison <- unique(sp.rich.comparison)
 setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
 sp.rich.comparison[unit == 'Loess', .(model, family, no.of.preds, AIC, BIC)] # View the table
-write_excel_csv(sp.rich.comparison, file = '../output/Species richness models of reptiles - AIC comparison.csv')
 
 rm(list = setdiff(ls()[grep('*loess.sp.rich.model', ls())], c('loess.sp.rich.model4'))) # Clean up
 ```
@@ -1139,32 +930,9 @@ plot(loess.abnd.sim.res) # No problems detected in the QQ plot
 
 plot(loess.abnd.sim.res$fittedPredictedResponse, loess.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nLoess total abundance model 4')
 plot(fitted(loess.abnd.model.full.NB), residuals(loess.abnd.model.full.NB), main = 'Response scale residuals\nLoess total abundance model 4')
-
-# Export these graphs:
-png('../output/Loess total abundance model 4 QQ Plot.png')
-plot(loess.abnd.sim.res)
-dev.off()
-
-png('../output/Loess total abundance model 4 fitted vs. scaled residuals.png')
-plot(loess.abnd.sim.res$fittedPredictedResponse, loess.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nLoess total abundance model 4')
-dev.off()
-
-png('../output/Loess total abundance model 4 fitted vs. residuals.png')
-plot(fitted(loess.abnd.model.full.NB), residuals(loess.abnd.model.full.NB), main = 'Response scale residuals\nLoess total abundance model 4')
-dev.off()
 ```
 Back up and document all the Loess total abundance models:
 ```{r}
-file.remove('../output/Loess - total abundance model selection.txt')
-for (model in c(ls()[grep('*loess.sp.rich.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                 file = '../output/Loess - total abundance model selection.txt', append = T)
-}
-# load('../output/Inner sands - total abundance models.Rdata')
-save(list = ls()[grep('*loess.abnd.model', ls())], file = '../output/Loess - total abundance models.Rdata')
-capture.output(cat('The best fitting model for total abundance in the loess is loess.abnd.model.full.NB.'), 
-               summary(loess.abnd.model.full.NB), file = '../output/Loess total abundance - best fitting model.txt', append = F)
-
 # Create a table comparing total abundance models:
 for(model in ls()[grep('*loess.abnd.model.', ls())]){
   total.abnd.comparison <- rbind(total.abnd.comparison,
@@ -1179,7 +947,6 @@ total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %l
 total.abnd.comparison <- unique(total.abnd.comparison)
 setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
 total.abnd.comparison[unit == 'Loess', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
-write_excel_csv(total.abnd.comparison, file = '../output/Total abundance models of reptiles - AIC comparison.csv')
 
 rm(list = setdiff(ls()[grep('*loess.abnd.model', ls())], c('loess.abnd.model.full.NB'))) # Clean up
 ```
@@ -1188,7 +955,6 @@ This time we have surprisingly accepted the full model. Let's see what are the t
 EMM_year_count <- emtrends(object = loess.abnd.model.full.NB, specs = 'habitat', var = 'year.count', type = 'response')
 test_results_land_use <- test(EMM_year_count, null = 0, adjust="fdr")
 print(test_results_land_use)
-capture.output(test_results_land_use, file = '../output/Loess habitat trends - reptile abundance.txt') # Export the results
 ```
 So, this mean that there is a significant (p = 0.0020) negative trend in the bedouin agriculture, but no significant trend in KKL plantings or the natural loess.
 Now let's proceed to examining the statistical significance of the overall trend (giving equal weight to each land use category):
@@ -1204,7 +970,6 @@ Next, let's see if there are significant differences between habitats (land uses
 EMM <- emmeans(object = loess.abnd.model.full.NB, ~habitat * year.count)
 test_results_land_use <- test(pairs(EMM, by = 'year.count'), by = NULL, adjust="fdr")
 print(test_results_land_use)
-capture.output(test_results_land_use, file = '../output/Loess compare habitats - reptile abundance.txt') # Export the results
 ```
 We found no significant differences in total reptile abundance between habitats (p > 0.05 for all comparisons).
 Now let's explore the model's predictions:
@@ -1260,7 +1025,6 @@ ggplot(data = loess.total.abnd.diel.pred, aes(x = as.POSIXct(ITime), y = predict
                                                                 subtitle = 'Predicted abundance for July 20th\nObserved abundance for all actual survey dates') + theme_bw() +
   facet_wrap(. ~ year) + theme(axis.text = element_text(size = 8)) +
   scale_x_datetime(date_labels = '%H:%M', date_breaks = '3 hours')
-ggsave('../output/loess.total.abnd.model3 diel Predictions and observations in reptile total abundance.png', scale = 1.25)
 ```
 The predictions are more or less in line the observations; peak time is around 10:30-11:00. Let's proceed to predicting the trend, for a fixed calendar date (July 20th) and a fixed time of day (10:30 a.m.):
 ```{r}
@@ -1294,8 +1058,6 @@ loess.total.abnd.fit.data[, ':=' (year.count = year - min(year),
 bla <- predict(loess.abnd.model.full.NB, newdata = loess.total.abnd.fit.data, type = 'response', se.fit = T)
 loess.total.abnd.fit.data[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
 loess.total.abnd.fit.data[, .(mean.predicted.abnd = mean(predicted.abnd), mean.predicted.abnd.se = mean(predicted.abnd.se)), keyby = .(habitat, year)] # decline in bedouin agriculture and loess, increase in kkl plantings
-write_excel_csv(loess.total.abnd.fit.data[, .(mean.predicted.abnd = mean(predicted.abnd), mean.predicted.abnd.se = mean(predicted.abnd.se)), keyby = .(habitat, year)],
-                '../output/Predicted total reptile abundance in the Loess model3.csv')
 
 loess.total.abnd.fit.data[habitat == 'bedouin agriculture' & year == floor(year), .(predicted.abnd), keyby = .(habitat, year)] # As the trend is negative, we will compare the first year's value to the last year's value
 cat('Percent decline in the Bedouin agriculture: ')
@@ -1424,28 +1186,10 @@ testDispersion(forest.sp.rich.sim.res, alternative = 'less')
 
 plot(forest.sp.rich.sim.res$fittedPredictedResponse, forest.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nForest species richness model 4')
 plot(fitted(Forest.sp.rich.model2), residuals(Forest.sp.rich.model2), main = 'Response scale residuals\nForest species richness model 4')
-
-# Export these graphs:
-png('../output/Forest species richness model 4 QQ Plot.png')
-plot(forest.sp.rich.sim.res)
-dev.off()
-
-png('../output/Forest species richness model 4 fitted vs. scaled residuals.png')
-plot(forest.sp.rich.sim.res$fittedPredictedResponse, forest.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nForest species richness model 4')
-dev.off()
-
-png('../output/Forest species richness model 4 fitted vs. residuals.png')
-plot(fitted(Forest.sp.rich.model2), residuals(Forest.sp.rich.model2), main = 'Response scale residuals\nForest species richness model 4')
-dev.off()
 ```
 We have clear indications of under-dispersion  (yes, again), which means we have lower statistical power. 
 Back up and document species richness models:
 ```{r}
-# The chosen model is Forest.sp.rich.model2 (time of day and season)
-capture.output(cat('The best fitting model for species richness in the planted forest is Forest.sp.rich.model2.\n'),
-               summary(Forest.sp.rich.model2), cat('\n------\n'), 
-               file = '../output/Planted conifer forest species richness best fitting model.txt')
-
 for(model in ls()[grep('*Forest.sp.rich.model.', ls())]){
   sp.rich.comparison <- rbind(sp.rich.comparison,
                               data.table(unit = 'Planted Conifer Forest', model = model,
@@ -1459,9 +1203,7 @@ sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% '
 sp.rich.comparison <- unique(sp.rich.comparison)
 setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
 sp.rich.comparison[unit == 'Planted Conifer Forest', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
-write_excel_csv(sp.rich.comparison, file = '../output/Species richness models of reptiles - AIC comparison.csv')
 
-save(list = ls()[grep('*Forest.sp.rich.model', ls())], file = '../output/Forest reptile species richness models.Rdata')
 rm(list = setdiff(ls()[grep('*Forest.sp.rich.model', ls())], c('Forest.sp.rich.model2'))) # Clean up
 ```
 Again, no researcher's hypotheses were confirmed so we do not explore the chosen model's predictions but continue directly to total abundance:
@@ -1527,39 +1269,15 @@ testDispersion(forest.abnd.sim.res, alternative = 'less', plot = F)
 
 plot(forest.abnd.sim.res$fittedPredictedResponse, forest.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nForest total abundance model 4')
 plot(fitted(Forest.abnd.model3), residuals(Forest.abnd.model3), main = 'Response scale residuals\nForest total abundance model 3')
-
-# Export these graphs:
-png('../output/Forest total abundance model 3 QQ Plot.png')
-plot(forest.abnd.sim.res)
-dev.off()
-
-png('../output/Forest total abundance model 3 fitted vs. scaled residuals.png')
-plot(forest.abnd.sim.res$fittedPredictedResponse, forest.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nForest total abundance model 3')
-dev.off()
-
-png('../output/Forest total abundance model 3 fitted vs. residuals.png')
-plot(fitted(Forest.abnd.model3), residuals(Forest.abnd.model3), main = 'Response scale residuals\nForest total abundance model 3')
-dev.off()
 ```
 We found no significant problems this time. As one research hypothesis was included in the chosen model (subunit), let's proceed to test for significant differences between all 3 subunits:
 ```{r}
 EMM <- emmeans(object = Forest.abnd.model3, ~subunit)
 test_results_land_use <- test(pairs(EMM), by=NULL, adjust="fdr")
 print(test_results_land_use)
-capture.output(test_results_land_use, file = '../output/Compare Forest subunits - reptile abundance.txt') # Export the results
 ```
 We found significant differences between Carmel and Galilee and between Carmel and Judean Highlands, but not between Galilee and Judean Highlands. Proceed to documenting and backing up the models:
 ```{r}
-file.remove('../output/Planted Conifer Forest - total abundance model selection.txt')
-for (model in c(ls()[grep('*Forest.abnd.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                 file = '../output/Planted Conifer Forest - total abundance model selection.txt', append = T)
-}
-# load('output/Planted Conifer Forest - total abundance models.Rdata')
-save(list = ls()[grep('*Forest.abnd.model', ls())], file = '../output/Planted Conifer Forest - total abundance models.Rdata')
-capture.output(cat('The best fitting model for total abundance in the Planted Conifer Forest is Forest.abnd.model3.'), 
-               summary(Forest.abnd.model3), file = '../output/Planted Conifer Forest total abundance - best fitting model.txt', append = F)
-
 # Create a table comparing total abundance models:
 for(model in ls()[grep('*Forest.abnd.model', ls())]){
   total.abnd.comparison <- rbind(total.abnd.comparison,
@@ -1574,7 +1292,6 @@ total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %l
 total.abnd.comparison <- unique(total.abnd.comparison)
 setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
 total.abnd.comparison[unit == 'Planted Conifer Forest', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
-write_excel_csv(total.abnd.comparison, file = '../output/Planted Conifer Forest total abundance models of reptiles - AIC comparison.csv')
 
 rm(list = setdiff(ls()[grep('*Forest.abnd.model', ls())], c('Forest.abnd.model3'))) # Clean up
 ```
@@ -1606,7 +1323,6 @@ Forest.total.abnd.fit.data
 bla <- predict(Forest.abnd.model3, newdata = Forest.total.abnd.fit.data, type = 'response', se.fit = T)
 Forest.total.abnd.fit.data[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
 Forest.total.abnd.fit.data[, .(subunit, predicted.abnd, predicted.abnd.se)] 
-write_excel_csv(Forest.total.abnd.fit.data, file = '../output/Planted forest - predictions of total reptile abundance.csv')
 ```
 Predictions are considerably lower than the observations. Let's try predicting for range of surveyed dates to see if it a seasonal issue:
 ```{r}
@@ -1627,7 +1343,6 @@ ggplot(data = Forest.total.abnd.fit.data2, aes(x = Date, y = predicted.abnd, col
   geom_point(data = reptiles[unit %like% 'Forest' & is.rare.in.unit == F, .(total.abnd = sum(count_individuals, na.rm = T)),
                              keyby = .(subunit, survey_ID, Date = as.Date(paste('2015', month(Date), day(Date), sep = '-')))],
              aes(x = Date, y = total.abnd, color = subunit)) + scale_x_date(date_labels = '%d/%m')
-ggsave('../output/Forest.abnd.model3 Predictions and observations in reptile total abundance in Forest with seasonal pattern.png')
 
 Forest[, .(mean.abnd = mean(total.abundance, na.rm = T), var.abnd = var(total.abundance, na.rm = T),
            median.abnd = median(total.abundance, na.rm = T)), keyby = subunit]
@@ -1652,7 +1367,6 @@ ggplot(data = Forest.total.abnd.fit.data3, aes(x = subunit, y = predicted.abnd, 
                              keyby = .(subunit, survey_ID)], aes(x = subunit, y = total.abnd, color = subunit)) + 
   geom_point(shape = 2, size = 5) + theme_bw() + labs(title = 'Forest total abundance - observations vs. predictions',
                                                       subtitle = 'Predictions are for May 1st; No trend was included in the final model')
-ggsave('../output/Forest.abnd.model3 Predictions and observations in reptile total abundance in Forest at May 1st.png')
 
 Forest[, .(mean.abnd = mean(total.abundance, na.rm = T), var.abnd = var(total.abundance, na.rm = T),
            median.abnd = median(total.abundance, na.rm = T)), keyby = subunit]
@@ -1739,32 +1453,9 @@ testDispersion(sfar.sp.rich.sim.res, alternative = 'less', plot = F)
 
 plot(sfar.sp.rich.sim.res$fittedPredictedResponse, sfar.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nSfar species richness null model')
 plot(fitted(sfar.sp.rich.model.null), residuals(sfar.sp.rich.model.null), main = 'Response scale residuals\nSfar species richness null model')
-
-# Export these graphs:
-png('../output/Sfar species richness null model QQ Plot.png')
-plot(sfar.sp.rich.sim.res)
-dev.off()
-
-png('../output/Sfar species richness null model fitted vs. scaled residuals.png')
-plot(sfar.sp.rich.sim.res$fittedPredictedResponse, sfar.sp.rich.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nSfar species richness null model')
-dev.off()
-
-png('../output/Sfar species richness null model fitted vs. residuals.png')
-plot(fitted(sfar.sp.rich.model.null), residuals(sfar.sp.rich.model.null), main = 'Response scale residuals\nSfar species richness null model')
-dev.off()
 ```
 
 ```{r}
-file.remove('../output/sfar - species richness model selection.txt')
-for (model in c(ls()[grep('*sfar.sp.rich.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                 file = '../output/sfar - species richness model selection.txt', append = T)
-}
-# load('output/sfar - Species richness models.Rdata')
-save(list = ls()[grep('*sfar.sp.rich.model', ls())], file = '../output/Sfar - Species richness models.Rdata')
-capture.output(cat('The best fitting model for species richness in the sfar is sfar.sp.rich.model.null.'), 
-               summary(sfar.sp.rich.model.null), file = '../output/sfar species richness - best fitting model.txt', append = F)
-
 # Create a table comparing total abundance models:
 for(model in ls()[grep('*sfar.sp.rich.model.', ls())]){
   sp.rich.comparison <- rbind(sp.rich.comparison,
@@ -1779,7 +1470,6 @@ sp.rich.comparison <- sp.rich.comparison[!(formula %like% '~' | formula %like% '
 sp.rich.comparison <- unique(sp.rich.comparison)
 setorder(sp.rich.comparison, unit, AIC)  # Sort by AIC (ascending)
 sp.rich.comparison[unit == 'sfar', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
-write_excel_csv(sp.rich.comparison, file = '../output/Species richness models of reptiles - AIC comparison.csv')
 
 rm(list = setdiff(ls()[grep('*sfar.sp.rich.model', ls())], c('sfar.sp.rich.model.null'))) # Clean up
 ```
@@ -1863,32 +1553,9 @@ testDispersion(sfar.abnd.sim.res, alternative = 'less', plot = F)
 
 plot(sfar.abnd.sim.res$fittedPredictedResponse, sfar.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nSfar total abundance model')
 plot(fitted(sfar.sp.rich.model.null), residuals(sfar.sp.rich.model.null), main = 'Response scale residuals\nSfar total abundance model')
-
-# Export these graphs:
-png('../output/Sfar total abundance model QQ Plot.png')
-plot(sfar.abnd.sim.res)
-dev.off()
-
-png('../output/Sfar total abundance model fitted vs. scaled residuals.png')
-plot(sfar.abnd.sim.res$fittedPredictedResponse, sfar.abnd.sim.res$scaledResiduals, main = 'DHARMa scaled residuals\nSfar total abundance model')
-dev.off()
-
-png('../output/Sfar total abundance model fitted vs. residuals.png')
-plot(fitted(sfar.sp.rich.model.null), residuals(sfar.sp.rich.model.null), main = 'Response scale residuals\nSfar total abundance model')
-dev.off()
 ```
 No problems detected. Now we can back up and document the model selection process:
 ```{r}
-file.remove('../output/sfar - total abundance model selection.txt')
-for (model in c(ls()[grep('*sfar.abnd.model', ls())])){
-  capture.output(cat(model), cat('\n=========\n'), summary(get(model)), cat('\n=========\n'),
-                 file = '../output/sfar - total abundance model selection.txt', append = T)
-}
-# load('output/sfar - Species richness models.Rdata')
-save(list = ls()[grep('*sfar.abnd.model', ls())], file = '../output/sfar - total abundance models.Rdata')
-capture.output(cat('The best fitting model for total abundance in the sfar is sfar.abnd.model4.'), 
-               summary(sfar.abnd.model4), file = '../output/sfar total abundance - best fitting model.txt', append = F)
-
 # Create a table comparing total abundance models:
 for(model in ls()[grep('*sfar.abnd.model.', ls())]){
   total.abnd.comparison <- rbind(total.abnd.comparison,
@@ -1903,7 +1570,6 @@ total.abnd.comparison <- total.abnd.comparison[!(formula %like% '~' | formula %l
 total.abnd.comparison <- unique(total.abnd.comparison)
 setorder(total.abnd.comparison, unit, AIC)  # Sort by AIC (ascending)
 total.abnd.comparison[unit == 'sfar', .(model, family, formula, no.of.preds, AIC, BIC)] # View the table
-write_excel_csv(total.abnd.comparison, file = '../output/Total abundance models of reptiles - AIC comparison.csv')
 
 rm(list = setdiff(ls()[grep('*sfar.abnd.model', ls())], c('sfar.abnd.model4'))) # Clean up
 ```
@@ -1933,7 +1599,6 @@ bla <- predict(sfar.abnd.model4, newdata = sfar.total.abnd.fit.data, type = 'res
 sfar.total.abnd.fit.data[, ':=' (predicted.abnd = bla$fit, predicted.abnd.se = bla$se.fit)]
 sfar.total.abnd.fit.data[, .(year, predicted.abnd, predicted.abnd.se)] # From 2.9 in 2014 to 5.0 individuals in 2020
 5.0 / 2.9 - 1 # 72.4% more
-write_excel_csv(sfar.total.abnd.fit.data[, .(year, predicted.abnd, predicted.abnd.se)], '../output/Sfar - predicted reptile total abundance.csv')
 
 sfar.total.abnd.fake.effect.plot <- ggplot(data = sfar.total.abnd.fit.data, aes(x = year, y = predicted.abnd)) +
   # geom_jitter(data = sfar, aes(x = year, y = total.abundance), alpha = 0.25, color = '#4e79b6', width = 0.2, height = 0.1) +
@@ -2002,11 +1667,7 @@ Loess.env[, year.count := year(Date) - min(year(Date))] # Define the temporal pr
 str(Loess.env) # Make sure all the factorial predictors are indeed factors
 ```
 ## Loess GLLVM model selection
-Look for correlation in the numeric predictors:
-```{r}
-# GGally::ggpairs(Loess.env[, .(sin.dist.21.June, sin.dist.noon, cos.dist.21.June, cos.dist.noon, year.count)])
-```
-Although there are some significant correlations, none of them is strong (> 0.6). So we will keep all of them in the output. Proceed to modelling with GLLVM. First, let's find out what is the best number of latent variables in our data set:
+First, let's find out what is the best number of latent variables in our data set:
 
 ```{r}
 # compare AICc between models using all environmental variables differing by number of latent variables
