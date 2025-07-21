@@ -1,0 +1,28 @@
+This is the last model for reptile species richness in the Loess unit that still includes the effect of habitat:
+ Family: poisson  ( log )
+Formula:          species.richness ~ year.count + habitat + sin.dist.21.June +  
+    cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)
+Data: loess
+
+     AIC      BIC   logLik deviance df.resid 
+   312.3    336.7   -147.1    294.3      103 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance  Std.Dev. 
+ site   (Intercept) 1.575e-09 3.969e-05
+Number of obs: 112, groups:  site, 7
+
+Conditional model:
+                     Estimate Std. Error z value Pr(>|z|)   
+(Intercept)           1.57511    0.73435   2.145  0.03196 * 
+year.count           -0.02541    0.04211  -0.603  0.54623   
+habitatkkl plantings  0.14480    0.21622   0.670  0.50308   
+habitatloess          0.23287    0.23642   0.985  0.32464   
+sin.dist.21.June      0.67276    0.40475   1.662  0.09648 . 
+cos.dist.21.June     -2.36570    0.82226  -2.877  0.00401 **
+sin.dist.noon         0.55166    0.21752   2.536  0.01121 * 
+cos.dist.noon         1.09770    0.49983   2.196  0.02808 * 
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1

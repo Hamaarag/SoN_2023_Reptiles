@@ -1,0 +1,149 @@
+sfar.sp.rich.model.full.Poisson
+=========
+ Family: poisson  ( log )
+Formula:          
+species.richness ~ settlements + sin.dist.21.June + cos.dist.21.June +  
+    sin.dist.noon + cos.dist.noon + (1 | site)
+Data: sfar
+
+     AIC      BIC   logLik deviance df.resid 
+   424.2    443.7   -205.1    410.2      112 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.03716  0.1928  
+Number of obs: 119, groups:  site, 5
+
+Conditional model:
+                 Estimate Std. Error z value Pr(>|z|)
+(Intercept)      -0.07782    0.88059  -0.088    0.930
+settlementsNear   0.13778    0.11897   1.158    0.247
+sin.dist.21.June -0.33552    0.57157  -0.587    0.557
+cos.dist.21.June  0.27484    0.65769   0.418    0.676
+sin.dist.noon    -0.04252    0.13973  -0.304    0.761
+cos.dist.noon     0.58467    0.47024   1.243    0.214
+
+=========
+sfar.sp.rich.model.null
+=========
+ Family: poisson  ( log )
+Formula:          species.richness ~ (1 | site)
+Data: sfar
+
+     AIC      BIC   logLik deviance df.resid 
+   418.7    424.3   -207.4    414.7      117 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.04313  0.2077  
+Number of obs: 119, groups:  site, 5
+
+Conditional model:
+            Estimate Std. Error z value Pr(>|z|)    
+(Intercept)   0.9083     0.1101   8.252   <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+=========
+sfar.sp.rich.model1
+=========
+ Family: poisson  ( log )
+Formula:          
+species.richness ~ settlements + sin.dist.21.June + cos.dist.21.June +  
+    cos.dist.noon + (1 | site)
+Data: sfar
+
+     AIC      BIC   logLik deviance df.resid 
+   422.3    439.0   -205.2    410.3      113 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.03821  0.1955  
+Number of obs: 119, groups:  site, 5
+
+Conditional model:
+                 Estimate Std. Error z value Pr(>|z|)
+(Intercept)      -0.03021    0.86867  -0.035    0.972
+settlementsNear   0.13475    0.11858   1.136    0.256
+sin.dist.21.June -0.30106    0.56018  -0.537    0.591
+cos.dist.21.June  0.23403    0.64436   0.363    0.716
+cos.dist.noon     0.58325    0.47131   1.238    0.216
+
+=========
+sfar.sp.rich.model2
+=========
+ Family: poisson  ( log )
+Formula:          
+species.richness ~ settlements + sin.dist.21.June + cos.dist.noon +  
+    (1 | site)
+Data: sfar
+
+     AIC      BIC   logLik deviance df.resid 
+   420.4    434.3   -205.2    410.4      114 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.04575  0.2139  
+Number of obs: 119, groups:  site, 5
+
+Conditional model:
+                 Estimate Std. Error z value Pr(>|z|)
+(Intercept)        0.2413     0.4409   0.547    0.584
+settlementsNear    0.1363     0.1185   1.150    0.250
+sin.dist.21.June  -0.1196     0.2481  -0.482    0.630
+cos.dist.noon      0.5679     0.4700   1.208    0.227
+
+=========
+sfar.sp.rich.model3
+=========
+ Family: poisson  ( log )
+Formula:          species.richness ~ settlements + cos.dist.noon + (1 | site)
+Data: sfar
+
+     AIC      BIC   logLik deviance df.resid 
+   418.7    429.8   -205.3    410.7      115 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.04124  0.2031  
+Number of obs: 119, groups:  site, 5
+
+Conditional model:
+                Estimate Std. Error z value Pr(>|z|)
+(Intercept)       0.3031     0.4174   0.726    0.468
+settlementsNear   0.1394     0.1181   1.180    0.238
+cos.dist.noon     0.6028     0.4615   1.306    0.191
+
+=========
+sfar.sp.rich.model4
+=========
+ Family: poisson  ( log )
+Formula:          species.richness ~ cos.dist.noon + (1 | site)
+Data: sfar
+
+     AIC      BIC   logLik deviance df.resid 
+   418.1    426.4   -206.0    412.1      116 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.04084  0.2021  
+Number of obs: 119, groups:  site, 5
+
+Conditional model:
+              Estimate Std. Error z value Pr(>|z|)
+(Intercept)     0.2770     0.4188   0.662    0.508
+cos.dist.noon   0.7137     0.4540   1.572    0.116
+
+=========

@@ -1,0 +1,10 @@
+Testing trends in reptile abundance in various habitats in the Loess monitoring unit:
+EMM2 <- emmeans(object = loess.abnd.model6, ~habitat) 
+ test(pairs(EMM2, by=NULL), by=NULL, adjust="fdr") 
+ contrast                            estimate    SE  df z.ratio p.value
+ bedouin agriculture - kkl plantings    0.531 0.202 Inf   2.632  0.0254
+ bedouin agriculture - loess            0.299 0.215 Inf   1.392  0.2460
+ kkl plantings - loess                 -0.232 0.232 Inf  -1.003  0.3161
+
+Results are given on the log (not the response) scale. 
+P value adjustment: fdr method for 3 tests 

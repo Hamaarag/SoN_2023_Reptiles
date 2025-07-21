@@ -1,0 +1,27 @@
+﻿"unit","model","data","family","formula","no.of.preds","AIC","BIC"
+"Coast Sands","coast.sp.rich.model4","coast","poisson","cos.dist.21.June + Region",2,639.3127605983434,648.7201559094942
+"Coast Sands","coast.sp.rich.model3","coast","poisson","dunes + cos.dist.21.June + Region",3,640.6405448732507,653.1837386214518
+"Coast Sands","coast.sp.rich.model2","coast","poisson","dunes + sin.dist.21.June + cos.dist.21.June + Region",4,642.5034986893581,658.1824908746095
+"Coast Sands","coast.sp.rich.model.full.Poisson","coast","poisson","settlements * dunes + sin.dist.21.June + cos.dist.21.June + Region",6,644.478801488091,663.2935921103925
+"Coast Sands","coast.sp.rich.model1","coast","poisson","settlements + dunes + sin.dist.21.June + cos.dist.21.June + Region",5,644.478801488091,663.2935921103925
+"Coast Sands","coast.sp.rich.model4b","coast","poisson","cos.dist.21.June + Region",2,645.3127606725427,664.1275512948442
+"Inner sands","inland.sands.sp.rich.model4","inland.sands","poisson","cos.dist.21.June + site",2,290.1704108472993,299.27707532336353
+"Inner sands","inland.sands.sp.rich.model3","inland.sands","poisson","sin.dist.21.June + cos.dist.21.June + site",3,290.2651910672437,301.64852166232396
+"Inner sands","inland.sands.sp.rich.model5","inland.sands","poisson","site",1,291.2718477598503,298.10184611689846
+"Inner sands","inland.sands.sp.rich.model2","inland.sands","poisson","agriculture + sin.dist.21.June + cos.dist.21.June + site",4,292.26503318996544,305.9250299040618
+"Inner sands","inland.sands.sp.rich.model1","inland.sands","poisson","agriculture + dunes + sin.dist.21.June + cos.dist.21.June + site",5,294.258830382067,310.1954932151794
+"Inner sands","inland.sands.sp.rich.model.full.Poisson","inland.sands","poisson","agriculture * dunes + sin.dist.21.June + cos.dist.21.June + site",6,295.5956760174943,313.8090049696228
+"Loess","loess.sp.rich.model3","loess","poisson","sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",4,307.8938845757461,324.20487780351664
+"Loess","loess.sp.rich.model4","loess","poisson","cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",3,309.0570042048558,322.64949856133126
+"Loess","loess.sp.rich.model2","loess","poisson","year.count + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",5,309.2319666988922,328.26145879795786
+"Loess","loess.sp.rich.model1","loess","poisson","year.count + habitat + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",6,312.2518383067626,336.71832814841844
+"Loess","loess.sp.rich.model.full.Poisson","loess","poisson","year.count * habitat + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",7,314.25994743072835,344.16343501497437
+"Planted Conifer Forest","Forest.sp.rich.model1","Forest","poisson","subunit + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + (1 | site)",4,625.6480687096251,649.4668103827311
+"Planted Conifer Forest","Forest.sp.rich.model2","Forest","poisson","sin.dist.21.June + cos.dist.21.June + sin.dist.noon + (1 | site)",3,626.1825673412468,643.1959542506082
+"Planted Conifer Forest","Forest.sp.rich.model.full.Poisson","Forest","poisson","subunit + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",5,627.5099294250116,654.7313484799898
+"sfar","sfar.sp.rich.model4","sfar","poisson","cos.dist.noon + (1 | site)",1,418.07656499624,426.4139354755746
+"sfar","sfar.sp.rich.model3","sfar","poisson","settlements + cos.dist.noon + (1 | site)",2,418.6797385183054,429.7962324907515
+"sfar","sfar.sp.rich.model.null","sfar","poisson","(1 | site)",0,418.7162219594196,424.2744689456427
+"sfar","sfar.sp.rich.model2","sfar","poisson","settlements + sin.dist.21.June + cos.dist.noon + (1 | site)",3,420.4431978809653,434.3388153465229
+"sfar","sfar.sp.rich.model1","sfar","poisson","settlements + sin.dist.21.June + cos.dist.21.June + cos.dist.noon + (1 | site)",4,422.3110374430755,438.9857784017447
+"sfar","sfar.sp.rich.model.full.Poisson","sfar","poisson","settlements + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",5,424.2185339157329,443.6723983675136

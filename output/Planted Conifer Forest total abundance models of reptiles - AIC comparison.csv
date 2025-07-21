@@ -1,0 +1,24 @@
+﻿"unit","model","data","family","formula","no.of.preds","AIC","BIC"
+"Coast Sands","coast.total.abnd.model3","coast","poisson","settlements + year.count + dunes + sin.dist.21.June + cos.dist.21.June + Region",6,783.8312470919822,805.781836151334
+"Coast Sands","coast.total.abnd.model4","coast","poisson","settlements + dunes + sin.dist.21.June + cos.dist.21.June + Region",5,784.2577211767397,803.0725117990412
+"Coast Sands","coast.total.abnd.model2","coast","poisson","settlements + year.count * dunes + sin.dist.21.June + cos.dist.21.June + Region",7,784.3607473266163,809.4471348230184
+"Coast Sands","coast.total.abnd.model5","coast","poisson","settlements + sin.dist.21.June + cos.dist.21.June + Region",4,785.7614554267931,801.4404476120444
+"Coast Sands","coast.total.abnd.model.full.Poisson","coast","poisson","year.count * settlements + year.count * dunes + dunes * settlements + sin.dist.21.June + cos.dist.21.June + Region",9,786.0107045437694,814.2328904772218
+"Coast Sands","coast.total.abnd.model1","coast","poisson","year.count * settlements + year.count * dunes + sin.dist.21.June + cos.dist.21.June + Region",8,786.0107045437694,814.2328904772218
+"Inland Sands","inland.sands.total.abnd.model5","inland.sands","poisson","year.count + sin.dist.21.June + cos.dist.21.June + site",4,340.5545541012159,354.21455081531224
+"Inland Sands","inland.sands.total.abnd.model6","inland.sands","poisson","year.count + sin.dist.21.June + site",3,341.86270887477036,353.24603946985064
+"Inland Sands","inland.sands.total.abnd.model4","inland.sands","poisson","year.count + agriculture + sin.dist.21.June + cos.dist.21.June + site",5,342.13209624435956,358.06875907747195
+"Inland Sands","inland.sands.total.abnd.model2","inland.sands","poisson","year.count + agriculture * dunes + sin.dist.21.June + cos.dist.21.June + site",7,342.77530667534546,363.26530174648997
+"Inland Sands","inland.sands.total.abnd.model3","inland.sands","poisson","year.count + agriculture + dunes + sin.dist.21.June + cos.dist.21.June + site",6,343.9232368593376,362.136565811466
+"Inland Sands","inland.sands.total.abnd.model1","inland.sands","poisson","year.count * agriculture + dunes + agriculture * dunes + sin.dist.21.June + cos.dist.21.June + site",8,344.0836947448084,366.85035593496895
+"Inland Sands","inland.sands.total.abnd.model.full","inland.sands","poisson","year.count * agriculture + year.count * dunes + agriculture * dunes + sin.dist.21.June + cos.dist.21.June + site",9,346.0118525081521,371.05517981732874
+"Loess","loess.abnd.model.full.NB","loess","nbinom2","year.count * habitat + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",7,434.61297868005835,467.2349651355995
+"Loess","loess.abnd.model.full.Poisson","loess","poisson","year.count * habitat + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",7,440.24541415198325,470.1489017362293
+"Loess","loess.abnd.model3","loess","nbinom2","year.count + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + (1 | site)",4,440.435106203378,459.4645983024436
+"Loess","loess.abnd.model2","loess","nbinom2","year.count + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",5,440.6480411611663,462.3960321315271
+"Loess","loess.abnd.model1","loess","nbinom2","year.count + habitat + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",6,440.6872771211607,467.87226583411166
+"Planted Conifer Forest","Forest.abnd.model3","Forest","nbinom2","subunit + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + (1 | site)",4,802.3144228444911,829.5358418994693
+"Planted Conifer Forest","Forest.abnd.model2","Forest","nbinom2","subunit + year.count + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + (1 | site)",5,802.3205033262645,832.9445997631151
+"Planted Conifer Forest","Forest.abnd.model1","Forest","nbinom2","subunit + year.count + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",6,802.8911587150642,836.9179325337869
+"Planted Conifer Forest","Forest.abnd.model.full.NB","Forest","nbinom2","subunit * year.count + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",7,804.9048392271013,845.7369678095687
+"Planted Conifer Forest","Forest.abnd.model.full.Poisson","Forest","poisson","subunit * year.count + sin.dist.21.June + cos.dist.21.June + sin.dist.noon + cos.dist.noon + (1 | site)",7,818.8915628199575,856.3210140205525

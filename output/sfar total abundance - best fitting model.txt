@@ -1,0 +1,26 @@
+The best fitting model for total abundance in the sfar is sfar.abnd.model4. Family: nbinom2  ( log )
+Formula:          
+total.abundance ~ year.count + sin.dist.21.June + cos.dist.21.June +  
+    (1 | site)
+Data: sfar
+
+     AIC      BIC   logLik deviance df.resid 
+   516.1    532.8   -252.1    504.1      113 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.0177   0.133   
+Number of obs: 119, groups:  site, 5
+
+Dispersion parameter for nbinom2 family (): 7.87 
+
+Conditional model:
+                 Estimate Std. Error z value Pr(>|z|)  
+(Intercept)      -0.90043    1.01637  -0.886   0.3757  
+year.count        0.08767    0.04376   2.003   0.0451 *
+sin.dist.21.June -1.20839    0.64783  -1.865   0.0621 .
+cos.dist.21.June  1.75654    0.93119   1.886   0.0593 .
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1

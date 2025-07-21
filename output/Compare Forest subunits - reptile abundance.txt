@@ -1,0 +1,7 @@
+ contrast                   estimate    SE  df z.ratio p.value
+ Judean Highlands - Carmel   -0.7110 0.288 Inf  -2.468  0.0204
+ Judean Highlands - Galilee   0.0528 0.307 Inf   0.172  0.8634
+ Carmel - Galilee             0.7638 0.293 Inf   2.603  0.0204
+
+Results are given on the log (not the response) scale. 
+P value adjustment: fdr method for 3 tests 

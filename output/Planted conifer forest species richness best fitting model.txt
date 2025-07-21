@@ -1,0 +1,27 @@
+The best fitting model for species richness in the planted forest is Forest.sp.rich.model2.
+ Family: poisson  ( log )
+Formula:          
+species.richness ~ sin.dist.21.June + cos.dist.21.June + sin.dist.noon +  
+    (1 | site)
+Data: Forest
+
+     AIC      BIC   logLik deviance df.resid 
+   626.2    643.2   -308.1    616.2      217 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.06544  0.2558  
+Number of obs: 222, groups:  site, 15
+
+Conditional model:
+                 Estimate Std. Error z value Pr(>|z|)    
+(Intercept)        0.4760     0.1176   4.047 5.19e-05 ***
+sin.dist.21.June  -0.2644     0.1109  -2.385   0.0171 *  
+cos.dist.21.June  -0.2802     0.1310  -2.139   0.0324 *  
+sin.dist.noon      0.2287     0.1220   1.874   0.0609 .  
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+------

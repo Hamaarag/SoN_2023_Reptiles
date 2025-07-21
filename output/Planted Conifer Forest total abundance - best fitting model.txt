@@ -1,0 +1,28 @@
+The best fitting model for total abundance in the Planted Conifer Forest is Forest.abnd.model3. Family: nbinom2  ( log )
+Formula:          
+total.abundance ~ subunit + sin.dist.21.June + cos.dist.21.June +  
+    sin.dist.noon + (1 | site)
+Data: Forest
+
+     AIC      BIC   logLik deviance df.resid 
+   802.3    829.5   -393.2    786.3      214 
+
+Random effects:
+
+Conditional model:
+ Groups Name        Variance Std.Dev.
+ site   (Intercept) 0.1497   0.3869  
+Number of obs: 222, groups:  site, 15
+
+Dispersion parameter for nbinom2 family (): 5.47 
+
+Conditional model:
+                 Estimate Std. Error z value Pr(>|z|)    
+(Intercept)       0.88141    0.21508   4.098 4.17e-05 ***
+subunitCarmel     0.71098    0.28812   2.468   0.0136 *  
+subunitGalilee   -0.05278    0.30672  -0.172   0.8634    
+sin.dist.21.June -0.51820    0.12106  -4.280 1.87e-05 ***
+cos.dist.21.June -0.80927    0.12469  -6.490 8.56e-11 ***
+sin.dist.noon     0.21602    0.13668   1.581   0.1140    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
