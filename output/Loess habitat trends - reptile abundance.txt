@@ -1,6 +1,0 @@
- habitat             year.count.trend     SE  df z.ratio p.value
- bedouin agriculture           -0.246 0.0723 Inf  -3.407  0.0020
- kkl plantings                  0.048 0.0671 Inf   0.716  0.4738
- loess                         -0.116 0.0557 Inf  -2.085  0.0556
-
-P value adjustment: fdr method for 3 tests 
