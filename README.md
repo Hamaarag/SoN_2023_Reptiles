@@ -102,7 +102,7 @@ If you use this repository or its contents, please cite **both** the main report
 Grossbard S, Renan I (Eds). 2024. *State of Nature Report 2023 – Biodiversity*.  
 Hamaarag – Israel’s National Ecosystem Assessment Program, Steinhardt Museum of Natural History, Tel Aviv University.  
 
-### **SoN_2023_Birds Repository**
+### **SoN_2023_Reptiles Repository**
 Hamaarag. *State of Nature Report 2023 - Reptiles*. Public Repository, 2024.  
 Available at: [https://github.com/Hamaarag/SoN_2023_Reptiles.git](https://github.com/Hamaarag/SoN_2023_Reptiles.git).  
 
