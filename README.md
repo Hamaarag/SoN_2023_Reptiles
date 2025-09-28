@@ -1,8 +1,8 @@
-# SoN_2023_Birds
+# SoN_2023_Reptiles
 
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-This repository contains the **essential scripts and data** needed to **recreate the analyses and figures** for the **bird group** in the [**State of Nature Report 2023**](https://hamaarag.org.il/report/%d7%93%d7%95%d7%97-%d7%9e%d7%a6%d7%91-%d7%94%d7%98%d7%91%d7%a2-2022-%d7%9b%d7%a8%d7%9a-%d7%9e%d7%92%d7%95%d7%95%d7%9f-%d7%91%d7%99%d7%95%d7%9c%d7%95%d7%92%d7%99/) by Hamaarag.
+This repository contains the **essential scripts and data** needed to **recreate the analyses and figures** for the **reptile group** in the [**State of Nature Report 2023**](https://hamaarag.org.il/report/%d7%93%d7%95%d7%97-%d7%9e%d7%a6%d7%91-%d7%94%d7%98%d7%91%d7%a2-2022-%d7%9b%d7%a8%d7%9a-%d7%9e%d7%92%d7%95%d7%95%d7%9f-%d7%91%d7%99%d7%95%d7%9c%d7%95%d7%92%d7%99/) by Hamaarag.
 
 ---
 
