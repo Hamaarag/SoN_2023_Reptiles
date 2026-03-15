@@ -5,17 +5,19 @@ date: "2024-12-18"
 output: html_document
 ---
 
-## Setup
+# Setup
 
-First, load the required R packages:
-```{r}
+First, let's get a clean start by removing all objects from the environment:
+```{r clear environment}
+rm(list = ls())
+```
+
+Next, load the required R packages:
+```{r load packages}
 # Setup----
 library(tidyverse)
 library(readxl)
 library(data.table)
-library(glmmTMB) # For generalized linear mixed models
-library(gllvm)
-library(jtools)
 library(sf) # For vector GIS objects
 library(raster)
 library(interactions) # For interaction plots
@@ -23,38 +25,33 @@ library(glmmTMB) # For generalized linear mixed models
 library(broom.mixed) # easily extract model coefficients
 library(extrafont)
 library(Cairo) # Export as vector pdf
-library(emmeans) # For pairwise comparison among factor levels
-library(DHARMa) # Examining GLMM model fit
 library(terra) # for handling raster data
+library(here) # for file paths
 Sys.setlocale("LC_ALL", "Hebrew") # For reading and writing csv files with Hebrew
-# knitr::opts_knit$set(root.dir = 'C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
 
 okabe <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", 'red')
 ```
 Here we include all the data wrangling phase preceding the analysis, originally included in the same script as the analysis itself. This has the advantage of avoiding the loading and processing of heavy GIS files every time we want to run subsequent analyses such as species richness etc. Note that the GIS files are NOT in Github but in HaMaarag Google Drive - see the ReadMe file for links.
 
 ```{r Load data}
-# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
 # Reptile data:
-reptiles.raw <- fread('data/2023-04-19_all_rept_data.csv')
+reptiles.raw <- fread(here('data/raw/2023-04-19_all_rept_data.csv'))
 reptiles <- copy(reptiles.raw)
 reptiles
 
 # Land use data:
-land.use <- rast("data/GIS/LC_Madad_MigvanB_21v1.tif") # see the ReadMe file to see where this file is
+land.use <- rast(here("data/GIS/LC_Madad_MigvanB_21v1.tif")) # see the ReadMe file to see where this file is
 plot(land.use) # seems ok
-land.use.legend <- read_excel("data/GIS/Categories4LC2020.xlsx")
+land.use.legend <- read_excel(here("data/GIS/Categories4LC2020.xlsx"))
 
 # Settlements data:
-settlements <- st_read("data/GIS/SETL_bental_2021.shp") # To calculate distance to nearest settlement
+settlements <- st_read(here("data/GIS/SETL_bental_2021.shp")) # To calculate distance to nearest settlement
 ggplot() + geom_sf(data = settlements) # seems ok
-army.bases <- st_read("data/GIS/Army_camps_Harel_Dan/Fenced_15_11.shp") # To calculate distance to nearest army base
+army.bases <- st_read(here("data/GIS/Army_camps_Harel_Dan/Fenced_15_11.shp")) # To calculate distance to nearest army base
 ggplot() + geom_sf(data = settlements, color = "lightblue") + geom_sf(data = army.bases, color = "red") # seems ok
 ```
 
 ```{r units}
-# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
-
 str(reptiles)
 summary(reptiles)
 
@@ -190,7 +187,7 @@ reptiles[, .(site, dunes, point_name, Date, start_Time, time, Date.time, ITime)]
 ```
 
 ```{r missing & excessive plots}
-study.design <- as.data.table(read_excel('Analysis/Study design.xlsx')) # Import the study design - how many plots per site etc.
+study.design <- as.data.table(read_excel(here('Analysis/Study design.xlsx'))) # Import the study design - how many plots per site etc.
 surveyed.plots <- reptiles[, .(no.of.surveyed.plots = uniqueN(point_name)), keyby = .(campaign, unit, subunit, site, settlements, agriculture, dunes, habitat)]
 surveyed.plots
 surveyed.planned.plots <- merge(study.design, surveyed.plots, by = c('unit', 'subunit', 'site', 'settlements', 'agriculture', 'dunes', 'habitat'), all = T)
@@ -202,11 +199,11 @@ missing.excessive.plots <- surveyed.planned.plots[no.of.surveyed.plots != no.of.
 setorder(missing.excessive.plots, campaign, unit, subunit, site, settlements, dunes, habitat, agriculture)
 missing.excessive.plots[, delta.plots := no.of.surveyed.plots - no.of.planned.plots] # negative values mean missing plots and vice versa
 missing.excessive.plots
-write_excel_csv(missing.excessive.plots, 'Analysis/Missing or excessive reptile plots.csv')
+write_excel_csv(missing.excessive.plots, here('Analysis/Missing or excessive reptile plots.csv'))
 
 # Add plots with zero observations as per Boaz Shacham's e-mail 7.12.2023:
 # I need to fill in all the missing plots and find out whether they were surveyed with no observations (zero observations) or not surveyed in the first place
-zero.obs <- as.data.table(read_excel('Analysis/Missing reptile plots - Boaz comments.xlsx', sheet = 'zero observations'))
+zero.obs <- as.data.table(read_excel(here('Analysis/Missing reptile plots - Boaz comments.xlsx'), sheet = 'zero observations'))
 str(zero.obs)
 zero.obs[!is.na(ITime), .(ITime, as.ITime = as.ITime(as.character(ITime)))] # "as.character" is necessary for a successful conversion
 zero.obs[, ':=' (Date = as.Date(Date), ITime = as.ITime(as.character(ITime)), start_Time = as.ITime(as.character(ITime)))]
@@ -301,9 +298,9 @@ excessive_plots <- reptiles[(site == 'Hatzerim') |
                             keyby = .(campaign, site, Date, year, habitat, point_name, settlements)]
 excessive_plots <-  excessive_plots[!(site == 'Sayeret Shaked' & habitat == 'kkl plantings')]
 st_write(st_as_sf(excessive_plots[!is.na(longitude)], coords = c('longitude', 'latitude'), crs = 4326, remove = F),
-         'Analysis/Excessive reptile plots.shp', append = F) # Export the excessive plots as an ESRI shapefile
+         here('Analysis/Excessive reptile plots.shp'), append = F) # Export the excessive plots as an ESRI shapefile
 st_write(st_as_sf(excessive_plots[!is.na(longitude)], coords = c('longitude', 'latitude'), crs = 4326, remove = F),
-         'Analysis/Excessive reptile plots.gpkg', append = F) # Export the excessive plots as a geopackage
+         here('Analysis/Excessive reptile plots.gpkg'), append = F) # Export the excessive plots as a geopackage
 reptiles[site == 'Ramat Hashofet', .(unique(point_name)), keyby = .(campaign, Date, latitude, longitude)] 
 # only in T1 we have two "Ramat HaShofet" plots which are very, very far away from Ramat HaShofet itself (near Ramot Naftali - might be the cause of confusion?)
 reptiles[site == 'Ramat Hashofet' & latitude > 33, .(unique(point_name)), keyby = .(latitude, longitude)] # indeed
@@ -376,7 +373,7 @@ plot.distances.same.att[, new_plot_id := ifelse(distance_m < 5, distance_to_plot
 plot.distances.same.att[new_plot_id == plot, .N] # 1702 cases
 plot.distances.same.att[new_plot_id == distance_to_plot, .N] # 434 cases
 plot.distances.same.att
-write_excel_csv(plot.distances.same.att, file = 'Analysis/Distances between plots in the same site.csv')
+write_excel_csv(plot.distances.same.att, file = here('Analysis/Distances between plots in the same site.csv'))
 ```
 
 ```{r plot synonyms}
@@ -424,7 +421,7 @@ reptiles[, .(uniqueLats = uniqueN(mean.lat)), keyby = point_name][uniqueLats > 1
 reptiles[]
 ```
 
-```{r campaigns}
+```{r campaigns 2}
 # campaign
 reptiles[is.na(campaign), .N, keyby = .(unit, year)] # all missing campaigns are in 2018  
 reptiles[, unique(campaign), keyby = .(unit, year)] # Should be T2
@@ -458,7 +455,7 @@ plot.surveyed[no.of.surveys != 3]
 plot.surveyed
 merge(plot.surveyed, data.table(expand.grid(site = reptiles[, unique(site)], campaign = c('T0', 'T1', 'T2', 'T3', 'T4'))),
       by = c('site', 'campaign'), all.x = T)[is.na(no.of.surveys)] # empty data.table -> all sites were surveyed at least once per campaign
-write_excel_csv(plot.surveyed, 'Analysis/No. of plots surveyed breakdown 29.1.2024.csv')
+write_excel_csv(plot.surveyed, here('Analysis/No. of plots surveyed breakdown 29.1.2024.csv'))
 ```
 
 ```{r plots per site-campaign}
@@ -700,18 +697,18 @@ reptiles[is.na(sin.dist.noon) | is.na(sin.dist.21.June), .(unit, Date, site, poi
 # Survey dates and times
 reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, month(Date))]
 write_excel_csv(reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, month(Date))],
-                'Analysis/No. of surveys per unit, campaign and calendar month.csv')
+                here('Analysis/No. of surveys per unit, campaign and calendar month.csv'))
 write_excel_csv(reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, month(Date))],
-                'Analysis/No. of surveys per unit and calendar month.csv')
+                here('Analysis/No. of surveys per unit and calendar month.csv'))
 reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, round(ITime))]
 write_excel_csv(reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, campaign, round(ITime))],
-                'Analysis/No. of surveys per unit, campaign and rounded hour.csv')
+                here('Analysis/No. of surveys per unit, campaign and rounded hour.csv'))
 write_excel_csv(reptiles[, .(no.of.surveys = uniqueN(survey_ID)), keyby = .(unit, round(ITime))],
-                'Analysis/No. of surveys per unit and rounded hour.csv')
+                here('Analysis/No. of surveys per unit and rounded hour.csv'))
 ```
 
 ```{r Species and their traits}
-species.list <- read_excel('data/raw/Reptile_species_traits.xlsx', sheet = 'to_import') %>% as.data.table()
+species.list <- read_excel(here('data/raw/Reptile_species_traits.xlsx'), sheet = 'to_import') %>% as.data.table()
 reptiles[, heb_name := NULL]
 reptiles <- merge(reptiles, species.list[, .(SciName, heb_name)], by = 'SciName', all.x = T) # add Hebrew species names
 reptiles[is.na(heb_name), sort(unique(SciName))] # 10 species with no Hebrew names
@@ -842,15 +839,13 @@ rept_cast.abnd <- as.matrix(rept_cast.abnd) # Convert to matrix for gllvm
 rept.env <- as.data.table(rept_cast[, 1:20]) # subset the environmental predictors of the reptiles data 
 str(rept.env)
 
-write_excel_csv(rept_cast, file = 'Output/Basic matrix - plots-campaign rows, species columns - individual counts.csv')
+write_excel_csv(rept_cast, file = here('Output/Basic matrix - plots-campaign rows, species columns - individual counts.csv'))
 ```
 
 ## Define rare species
 Although we decided not to exclude rare reptile species from the analyses, I add this here for completeness:
 
 ```{r rare species}
-# setwd('C:/Users/User/OneDrive - Tel-Aviv University/Maarag/State of Nature Report/2023/Reptiles') # Change this to your file path
-
 ### 5. Define rare species (to be excluded from certain analyses)----
 # cutoff for rare species - minimum number of plots in which the species was observed. The key is two plots per campaign containing 30 plots, rounded to the nearest integer.
 # an additional cutoff is a minimum of 10 individuals.
@@ -881,7 +876,7 @@ rare.species <- merge(rare.species, species.list[, .(Species = unique(SciName)),
 setcolorder(rare.species, c('unit','Species', 'heb_name')); setorder(rare.species, unit, Species, heb_name)
 rare.species
 rare.species[, .(no.of.rare.spp = uniqueN(Species)), keyby = unit] # no fewer than 19 rare species in the semi desert
-write_excel_csv(rare.species, file = 'Output/Rare species to be removed from certrain analyses.csv')
+write_excel_csv(rare.species, file = here('Output/Rare species to be removed from certrain analyses.csv'))
 rm(rare.species1, rare.species2) # clean up
 
 # Indicate rare species per unit
@@ -983,7 +978,7 @@ coast.sp.rich.dotplot <- ggplot(data = coast, aes(x = species.richness, y = site
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 coast.sp.rich.dotplot
-ggsave('Figures/Reptile species richness in the coastal sands - dotplot.png', plot = coast.sp.rich.dotplot)
+ggsave(here('Figures/Reptile species richness in the coastal sands - dotplot.png'), plot = coast.sp.rich.dotplot)
 
 # The relevant predictors are distance to settlement, dunes, and temporal trend
 # Plot species richness
@@ -993,7 +988,7 @@ ggplot(data = coast, aes(x = dunes, color = settlements, y = species.richness)) 
 ```
 # Inland sands
 Next unit: the inland sands. Some exploration first:
-```{r}
+```{r inland sands}
 reptiles[unit %like% 'Inland' & !is.na(SciName), .(total.abnd = sum(count_individuals), total.sp.rich = uniqueN(SciName))] # 594 reptiles from 17 species
 
 alpha.div[, sort(unique(unit))]
@@ -1013,7 +1008,7 @@ Inner.sands.sp.rich.dotplot <- ggplot(data = inland.sands, aes(x = species.richn
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 Inner.sands.sp.rich.dotplot
-ggsave('Figures/Reptile species richness in the Inner sands - dotplot.png', plot = Inner.sands.sp.rich.dotplot)
+ggsave(here('Figures/Reptile species richness in the Inner sands - dotplot.png'), plot = Inner.sands.sp.rich.dotplot)
 
 Inner.sands.abnd.dotplot <- ggplot(data = inland.sands, aes(x = total.abundance, y = site)) +
   geom_point(aes(color = dunes, shape = agriculture)) +  geom_line(aes(group = site)) +
@@ -1024,7 +1019,7 @@ Inner.sands.abnd.dotplot <- ggplot(data = inland.sands, aes(x = total.abundance,
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 Inner.sands.abnd.dotplot
-ggsave('Figures/Reptile Total Abundance in the Inner sands - dotplot.png', plot = Inner.sands.abnd.dotplot)
+ggsave(here('Figures/Reptile Total Abundance in the Inner sands - dotplot.png'), plot = Inner.sands.abnd.dotplot)
 ```
 ## Inland Sands: Calculate distance to the nearest agricultural plot
 First, let's find out where are the agricultural plots:
@@ -1058,8 +1053,8 @@ inland.sands.plots # Seems reasonable
 Summarize and export the results:
 ```{r export distance per plot}
 inland.sands.plots[, .(mean.dist.to.agr = mean(LC_Madad_MigvanB_21v1), min.dist.to.agr = min(LC_Madad_MigvanB_21v1), max.dist.to.agr = max(LC_Madad_MigvanB_21v1), N = uniqueN(point_name)), keyby = agriculture]
-write_excel_csv(inland.sands.plots, "Output/Inland sands reptiles - distances to agriculture per plot.csv")
-write_excel_csv(inland.sands.plots[, .(mean.dist.to.agr = mean(LC_Madad_MigvanB_21v1), min.dist.to.agr = min(LC_Madad_MigvanB_21v1), max.dist.to.agr = max(LC_Madad_MigvanB_21v1), no.of.plots = uniqueN(point_name)), keyby = agriculture], "Output/Inland sands reptiles - distances to agriculture summary statistics.csv")
+write_excel_csv(inland.sands.plots, here("Output/Inland sands reptiles - distances to agriculture per plot.csv"))
+write_excel_csv(inland.sands.plots[, .(mean.dist.to.agr = mean(LC_Madad_MigvanB_21v1), min.dist.to.agr = min(LC_Madad_MigvanB_21v1), max.dist.to.agr = max(LC_Madad_MigvanB_21v1), no.of.plots = uniqueN(point_name)), keyby = agriculture], here("Output/Inland sands reptiles - distances to agriculture summary statistics.csv"))
 ```
 
 # Loess
@@ -1089,7 +1084,7 @@ loess.sp.rich.dotplot <- ggplot(data = loess, aes(x = species.richness, y = site
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 loess.sp.rich.dotplot
-ggsave('Figures/Reptile species richness in the Loess - dotplot.png', plot = loess.sp.rich.dotplot)
+ggsave(here('Figures/Reptile species richness in the Loess - dotplot.png'), plot = loess.sp.rich.dotplot)
 
 loess.abnd.dotplot <- ggplot(data = loess, aes(x = total.abundance, y = site)) +
   geom_point(aes(color = habitat)) +  geom_line(aes(group = site)) +
@@ -1099,67 +1094,78 @@ loess.abnd.dotplot <- ggplot(data = loess, aes(x = total.abundance, y = site)) +
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 loess.abnd.dotplot
-ggsave('Figures/Reptile Total Abundance in the Loess - dotplot.png', plot = loess.abnd.dotplot)
+ggsave(here('Figures/Reptile Total Abundance in the Loess - dotplot.png'), plot = loess.abnd.dotplot)
 ```
 
 ## Planted Conifer Forest
 We want to calculate the distance to nearest army base or settlement. For that, we need to create a unified object of both settlements and army bases. To do that, we need to use the function `rbind` on these sf objects, if they have the same columns. First, let's see what columns (attributes) each sf object has:
-```{r}
+```{r structure of GIS vector data}
 str(army.bases)
 str(settlements)
 ```
 Unite the settlements and army base objects before calculating the distance to nearest army base or settlement:
-```{r}
+```{r unite army bases and settlements sf objects}
 army.bases <- st_transform(army.bases, crs = st_crs(settlements)) # Make sure the sf object share a coordinate reference system
 army.bases <- as.data.table(army.bases)[, .(SETL_NAME = Name, type = "Security Forces Base", geometry)] %>% st_as_sf()
 settlements <- as.data.table(settlements)[, .(SETL_NAME, type = "Settlement", geometry)] %>% st_as_sf()
 ggplot() + geom_sf(data = army.bases, color = "red") + geom_sf(data = settlements, color = "lightblue")
 ```
 Rasterize the army bases:
-```{r}
+```{r rasterize army bases}
 base.rast <- fasterize::fasterize(army.bases, raster = raster(land.use), field = NULL)
-plot(base.rast, main = "Raster of army bases")
+plot(base.rast, main = "Raster of army bases") # make sure the resultig raster makes sense
+terra::writeRaster(base.rast, here("data/GIS/Army base raster.tiff"), overwrite = T) # export the raster
+base.rast <- terra::rast(here("data/GIS/Army base raster.tiff")) # use terra to point to the geotiff file we just created to save memory
 ```
 Rasterize the settlements:
-```{r}
+```{r rasterize settlements}
 sett.rast <- fasterize::fasterize(settlements, raster = raster(land.use), field = NULL)
-plot(sett.rast, main = "Raster of settlements")
+plot(sett.rast, main = "Raster of settlements") # make sure the resulting raster makes sense
+terra::writeRaster(sett.rast, here("data/GIS/Settlement raster 2021.tiff"), overwrite = T) # export the raster
+sett.rast <- terra::rast(here("data/GIS/Settlement raster 2021.tiff")) # use terra to point to the geotiff file we just created to save memory
+gc() # free up memory
 ```
 Combine the army bases and settlements rasters:
-```{r}
-sett.base.rast <- mosaic(rast(sett.rast), rast(base.rast))
+```{r unite army bases and settlments rasters}
+sett.base.rast <- terra::mosaic(sett.rast, base.rast)
 plot(sett.base.rast, main = "Raster of settlements and army bases")
+terra::writeRaster(sett.base.rast, here("data/GIS/Raster of settlements and army bases.tiff"), overwrite = T) # export the resulting raster as a file
+sett.base.rast <- terra::rast(here("data/GIS/Raster of settlements and army bases.tiff")) # redefine the raster based on the file we just created
+gc() # free up memory
 ```
 Distance of plots to nearest settlement or army base:
-```{r}
+```{r distance raster to nearest army base or settlement}
 sett.dist <- distance(sett.base.rast)
-plot(sett.dist) # This is more or less reasonable
+plot(sett.dist, main = "Distance to the nearest settlement or army base") # This is more or less reasonable
 sett.dist
-writeRaster(sett.dist, "Output/Raster of distances to the nearest settlement or army base.tif", overwrite = T)
+writeRaster(sett.dist, here("Output/Raster of distances to the nearest settlement or army base.tif"), overwrite = T)
 ```
 Find the coordinates of each plot
-```{r}
+```{r Forest unit plots as SF objects}
 Forest.plots <- reptiles[unit %like% "Forest" & !is.na(latitude) & !is.na(longitude), .(latitude = mean(latitude), longitude = mean(longitude)), keyby = .(point_name)] # Find the unique coordinates per plot
 Forest.plots[, .N, keyby = point_name][N > 1] # sanity check: Should yield an empty data.table
-Forest.plots <- st_as_sf(Forest.plots, coords = c("longitude", "latitude"), crs = 4326, remove = F) %>% st_transform(crs = 2039) # Convert to sf and reproject as Israel Transeverse Meractor
+Forest.plots <- st_as_sf(Forest.plots, coords = c("longitude", "latitude"), crs = 4326, remove = F) %>% st_transform(crs = 2039) # Convert to sf and reproject as Israel Transverse Mercator
 as.data.table(Forest.plots)
 reptiles[unit %like% "Forest" & !point_name %in% Forest.plots$point_name, unique(point_name)]
 ```
 Now let's extract the distances of each plot to the nearest settlement or army base cell:
-```{r}
-Forest.plots <- as.data.table(cbind(Forest.plots, extract(sett.dist, vect(Forest.plots))))
+```{r Forest unit distance to nearest army base or settlement}
+Forest.plots <- as.data.table(cbind(Forest.plots, terra::extract(sett.dist, vect(Forest.plots))))
+setnames(Forest.plots, old = "Settlement.raster.2021", new = "dist_nearest_sett") # rename for clarity
 Forest.plots # Seems reasonable
 ```
 Summarize and export the results:
-```{r}
-Forest.plots[, .(mean.dist.to.sett = mean(layer), min.dist.to.sett = min(layer), max.dist.to.sett = max(layer), N = uniqueN(point_name))]
-write_excel_csv(Forest.plots, "Output/Forest reptiles - distances to settlement or army base per plot.csv")
-write_excel_csv(Forest.plots[, .(mean.dist.to.sett = mean(layer), min.dist.to.sett = min(layer), max.dist.to.sett = max(layer), no.of.plots = uniqueN(point_name))], "Output/Forest reptiles - distances to settlement or army base summary statistics.csv")
+```{r export distance to nearest settlement or army base}
+Forest.plots[, .(mean.dist.to.sett = mean(dist_nearest_sett), min.dist.to.sett = min(dist_nearest_sett), max.dist.to.sett = max(dist_nearest_sett), N = uniqueN(point_name))]
+write_excel_csv(Forest.plots, here("Output/Forest reptiles - distances to settlement or army base per plot.csv"))
+write_excel_csv(Forest.plots[, .(mean.dist.to.sett = mean(dist_nearest_sett), min.dist.to.sett = min(dist_nearest_sett), max.dist.to.sett = max(dist_nearest_sett), no.of.plots = uniqueN(point_name))], here("Output/Forest reptiles - distances to settlement or army base summary statistics.csv"))
 ```
 
-Data exploration:
+# Data exploration:
 
-```{r}
+## Forest
+
+```{r Forest}
 ### Forest----
 reptiles[unit %like% 'Forest' & !is.na(SciName), .(total.abnd = sum(count_individuals), total.sp.rich = uniqueN(SciName))]
 reptiles[unit %like% 'Forest', unique(campaign), keyby = year]
@@ -1188,7 +1194,7 @@ Forest.sp.rich.dotplot <- ggplot(data = Forest, aes(x = species.richness, y = si
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 Forest.sp.rich.dotplot
-ggsave('Figures/Reptile species richness in the Forest - dotplot.png', plot = Forest.sp.rich.dotplot, scale = 1.25)
+ggsave(here('Figures/Reptile species richness in the Forest - dotplot.png'), plot = Forest.sp.rich.dotplot, scale = 1.25)
 
 Forest.abnd.dotplot <- ggplot(data = Forest, aes(x = total.abundance, y = site, color = subunit)) +
   geom_point(aes(color = subunit)) +  geom_line(aes(group = site, color = subunit)) +
@@ -1198,7 +1204,7 @@ Forest.abnd.dotplot <- ggplot(data = Forest, aes(x = total.abundance, y = site, 
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 Forest.abnd.dotplot
-ggsave('Figures/Reptile Total Abundance in the Forest - dotplot.png', plot = Forest.abnd.dotplot, scale = 1.25)
+ggsave(here('Figures/Reptile Total Abundance in the Forest - dotplot.png'), plot = Forest.abnd.dotplot, scale = 1.25)
 
 # The relevant predictor is the subunit and the temporal trend
 ```
@@ -1206,7 +1212,7 @@ ggsave('Figures/Reptile Total Abundance in the Forest - dotplot.png', plot = For
 
 Data exploration first:
 
-```{r}
+```{r semi desert}
 ### Mediterranean-Desert Transition Zone (Semi desert, Sfar HaMidbar)----
 ## semi-desert species richness----
 reptiles[unit %like% 'Transition', .(total.abnd = sum(count_individuals), total.sp.rich = uniqueN(SciName))]
@@ -1231,7 +1237,7 @@ sfar.sp.rich.dotplot <- ggplot(data = sfar, aes(x = species.richness, y = site, 
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 sfar.sp.rich.dotplot
-ggsave('Figures/Reptile species richness in the sfar - dotplot.png', plot = sfar.sp.rich.dotplot, scale = 1.25)
+ggsave(here('Figures/Reptile species richness in the sfar - dotplot.png'), plot = sfar.sp.rich.dotplot, scale = 1.25)
 
 sfar.abnd.dotplot <- ggplot(data = sfar, aes(x = total.abundance, y = site, color = settlements,
                                              label = str_sub(point_name, start = 1, end = 20))) +
@@ -1242,22 +1248,22 @@ sfar.abnd.dotplot <- ggplot(data = sfar, aes(x = total.abundance, y = site, colo
   theme_bw() + theme(legend.position = 'bottom',
                      plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 sfar.abnd.dotplot
-ggsave('Figures/Reptile Total Abundance in the sfar - dotplot.png', plot = sfar.abnd.dotplot, scale = 1.25)
+ggsave(here('Figures/Reptile Total Abundance in the sfar - dotplot.png'), plot = sfar.abnd.dotplot, scale = 1.25)
 
 # Plot species richness
 ggplot(data = sfar, aes(x = settlements, color = settlements, y = species.richness)) + geom_boxplot() + 
   geom_jitter(height = 0, width = 0.3) + facet_wrap(. ~ year) + theme_bw()
 ```
 
-## Export the wrangled data base:
+# Export the wrangled data base:
 ```{r export wrangled data}
 str(reptiles)
 setorder(reptiles, unit, campaign, year, site, settlements, agriculture, habitat, dunes, Date, ITime, mean.lat, conc_lat_lon, SciName,
          heb_name) # Make sure the data are ordered reasonably
 setcolorder(reptiles, c('unit', 'campaign', 'year', 'site', 'point_name', 'mean.lat', 'mean.lon','settlements', 'agriculture', 'habitat', 'dunes', 'Date',
                         'ITime', 'SciName', 'heb_name', 'count_individuals')) # Order the columns reasonably
-write_excel_csv(reptiles, 'data/processed/wrangled reptile data T0-T4.csv')
-write_excel_csv(reptiles[unit %like% "Plain"], 'data/processed/wrangled reptile data T0-T4 - Coastal Plain Dunes 18.7.24.csv')
-save(reptiles, coast, inland.sands, Forest, sfar, file = 'data/processed/wrangled reptile data T0-T4.Rdata')
+write_excel_csv(reptiles, here('data/processed/wrangled reptile data T0-T4.csv'))
+write_excel_csv(reptiles[unit %like% "Plain"], here('data/processed/wrangled reptile data T0-T4 - Coastal Plain Dunes 18.7.24.csv'))
+save(reptiles, coast, inland.sands, Forest, sfar, file = here('data/processed/wrangled reptile data T0-T4.Rdata'))
 ```
 
